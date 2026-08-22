@@ -2,6 +2,18 @@
 .DS_Store
 Thumbs.db
 *.log
+node_modules/
+
+# Secrets / lokale Config - nie committen
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*credentials*.json
+secrets.json
+.npmrc
 
 # Noch nicht ins Spiel integriertes Material, vorerst ignoriert
 assets/buchstabino_zahlofant_assets.zip
