@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4ade80">
+  <meta name="description" content="🧮 Rechen-Abenteuer – Kindgerechtes Mathe-Lernspiel">
+  <title>🧮 Rechen-Abenteuer</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Audio-Elemente für Fallback -->
+  <audio id="audio-correct" preload="auto"></audio>
+  <audio id="audio-wrong" preload="auto"></audio>
+  <audio id="audio-number" preload="auto"></audio>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+
+  <main class="app-shell" role="main" aria-label="Rechen-Abenteuer">
+
+    <!-- Moduswahl-Screen -->
+    <section class="screen mode-select" id="screen-mode-select">
+      <h1 class="mode-select__title">🧮 Rechen-Abenteuer</h1>
+      <p class="mode-select__subtitle">Wähle ein Spiel:</p>
+
+      <div class="mode-cards">
+        <button class="mode-card" type="button" data-mode="count">
+          <span class="mode-card__icon" aria-hidden="true">🔢</span>
+          <span class="mode-card__title">Zählen</span>
+          <span class="mode-card__desc">Zähle die Objekte</span>
+        </button>
+        <button class="mode-card" type="button" data-mode="arithmetic">
+          <span class="mode-card__icon" aria-hidden="true">➕➖</span>
+          <span class="mode-card__title">Addieren/Subtrahieren</span>
+          <span class="mode-card__desc">Wie viele sind es?</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Spiel-Screen -->
+    <section class="screen game-container" id="screen-game" hidden>
+      <!-- Header mit Fortschritt -->
+      <header class="game-header">
+        <div class="progress-ring" role="img" aria-label="Fortschritt">
+          <svg class="progress-svg" viewBox="0 0 60 60">
+            <circle class="progress-bg" cx="30" cy="30" r="26"></circle>
+            <circle class="progress-bar" cx="30" cy="30" r="26" stroke-dasharray="163.36" stroke-dashoffset="163.36"></circle>
+          </svg>
+          <span class="level-badge" aria-live="polite">Level 1</span>
+        </div>
+        <div class="streak-display" aria-live="polite" aria-atomic="true">
+          <span class="streak-icon">🔥</span>
+          <span class="streak-count">0</span>
+        </div>
+      </header>
+
+      <!-- Aufgaben-Bereich -->
+      <section class="task-area" aria-live="polite" aria-atomic="true">
+        <!-- Motiv-Bühne (Objekte zum Zählen/Vergleichen) -->
+        <div class="motif-container" role="img" aria-label="Aufgabe">
+          <div class="motif-stage" id="motif-stage"></div>
+          <p class="task-question" id="task-question">Lade Aufgabe…</p>
+        </div>
+
+        <!-- Antwort-Optionen -->
+        <div class="options-container" role="group" aria-label="Antwortmöglichkeiten">
+          <button class="option-btn" data-value="" aria-pressed="false" tabindex="0">
+            <span class="option-number"></span>
+          </button>
+          <button class="option-btn" data-value="" aria-pressed="false" tabindex="0">
+            <span class="option-number"></span>
+          </button>
+          <button class="option-btn" data-value="" aria-pressed="false" tabindex="0">
+            <span class="option-number"></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Feedback-Bereich -->
+      <div class="feedback-area" aria-live="assertive" aria-atomic="true" hidden>
+        <div class="feedback-message" id="feedback-message"></div>
+      </div>
+
+      <!-- Steuerung -->
+      <footer class="game-footer">
+        <button class="btn-menu" id="btn-menu" aria-label="Zurück zur Moduswahl">
+          <span aria-hidden="true">🏠</span> Menü
+        </button>
+        <button class="btn-repeat" id="btn-repeat" aria-label="Aufgabe wiederholen">
+          <span aria-hidden="true">🔁</span> Wiederholen
+        </button>
+        <button class="btn-pause" id="btn-pause" aria-label="Pause">
+          <span aria-hidden="true">⏸️</span> Pause
+        </button>
+      </footer>
+    </section>
+  </main>
+
+  <!-- Pause-Modal -->
+  <dialog class="pause-modal" id="pause-modal" aria-labelledby="pause-title">
+    <div class="modal-content">
+      <h2 id="pause-title">⏸️ Pause</h2>
+      <p class="pause-stats" id="pause-stats"></p>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-resume">Weiterspielen</button>
+        <button class="btn-secondary" id="btn-restart">Neu starten</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Install-Hinweis (PWA) -->
+  <div class="install-banner" id="install-banner" hidden role="status" aria-live="polite">
+    <p>📱 <strong>Als App installieren</strong> – für Offline-Spiel & Vollbild!</p>
+    <div class="install-actions">
+      <button class="btn-primary" id="btn-install">Installieren</button>
+      <button class="btn-ghost" id="btn-dismiss">Später</button>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+  <script>
+    // Service Worker registrieren
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    // Install-Prompt handling
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install-banner').hidden = false;
+    });
+    document.getElementById('btn-install')?.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') deferredPrompt = null;
+        document.getElementById('install-banner').hidden = true;
+      }
+    });
+    document.getElementById('btn-dismiss')?.addEventListener('click', () => {
+      document.getElementById('install-banner').hidden = true;
+    });
+  </script>
+</body>
+</html>

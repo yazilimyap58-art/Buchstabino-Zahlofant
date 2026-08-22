@@ -1,0 +1,26 @@
+{
+  "name": "🧮 Rechen-Abenteuer",
+  "short_name": "Rechen-Abenteuer",
+  "description": "Kindgerechtes Mathe-Lernspiel mit Zählaufgaben, Addieren und Subtrahieren",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4ade80",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "lang": "de",
+  "categories": ["education", "games", "puzzle"],
+  "prefer_related_applications": false
+}
