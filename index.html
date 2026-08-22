@@ -64,14 +64,32 @@
       </div>
     </section>
 
-    <!-- Platzhalter-Screen (zweite Ebene, Kategorie "Buchstaben" - Minispiele folgen später) -->
-    <section class="screen mode-select letters-soon" id="screen-letters-soon" hidden>
+    <!-- Moduswahl-Screen (zweite Ebene, Kategorie "Buchstaben") -->
+    <section class="screen mode-select" id="screen-letters-mode-select" hidden>
       <button class="btn-back btn-back-category" type="button">◀ Zurück</button>
       <div class="mode-select__header">
-        <img class="mascot-img mascot-img--lg" id="mascot-letters-soon" data-pose="idle" src="assets/mascots/buchstabino_zahlofant_assets/svg/buchstabino_idle.svg" alt="Buchstabino" width="128" height="128">
+        <img class="mascot-img mascot-img--lg" id="mascot-letters-mode-select" data-pose="idle" src="assets/mascots/buchstabino_zahlofant_assets/svg/buchstabino_idle.svg" alt="Buchstabino" width="128" height="128">
         <h1 class="mode-select__title">Buchstaben</h1>
       </div>
-      <p class="mode-select__subtitle">Bald geht's hier los! Buchstabino bereitet schon alles vor. ✏️</p>
+      <p class="mode-select__subtitle">Wähle ein Spiel:</p>
+
+      <div class="mode-cards">
+        <button class="mode-card" type="button" data-mode="lettersHear">
+          <span class="mode-card__icon" aria-hidden="true">👂</span>
+          <span class="mode-card__title">Hören</span>
+          <span class="mode-card__desc">Welcher Buchstabe wurde genannt?</span>
+        </button>
+        <button class="mode-card" type="button" data-mode="lettersFind">
+          <span class="mode-card__icon" aria-hidden="true">🔍</span>
+          <span class="mode-card__title">Finden</span>
+          <span class="mode-card__desc">Tippe den gesuchten Buchstaben an</span>
+        </button>
+        <button class="mode-card" type="button" data-mode="lettersDraw">
+          <span class="mode-card__icon" aria-hidden="true">✏️</span>
+          <span class="mode-card__title">Zeichnen</span>
+          <span class="mode-card__desc">Buchstaben nachfahren &amp; üben</span>
+        </button>
+      </div>
     </section>
 
     <!-- Spiel-Screen -->
@@ -124,6 +142,31 @@
         <button class="btn-pause" id="btn-pause" aria-label="Pause">
           <span aria-hidden="true">⏸️</span> Pause
         </button>
+      </footer>
+    </section>
+
+    <!-- Zeichnen-Screen (Buchstaben nachfahren) -->
+    <section class="screen draw-container" id="screen-letter-draw" hidden>
+      <header class="draw-header">
+        <button class="btn-back btn-back-category" type="button">◀ Zurück</button>
+        <img class="mascot-img mascot-img--sm" id="mascot-draw" data-pose="idle" src="assets/mascots/buchstabino_zahlofant_assets/svg/buchstabino_idle.svg" alt="Buchstabino" width="56" height="56">
+      </header>
+
+      <p class="draw-question" id="draw-question" aria-live="polite">Fahre den Buchstaben nach</p>
+
+      <div class="draw-stage">
+        <canvas class="draw-guide-canvas" id="draw-guide-canvas" aria-hidden="true"></canvas>
+        <canvas class="draw-ink-canvas" id="draw-ink-canvas" role="img" aria-label="Zeichenfläche"></canvas>
+      </div>
+
+      <div class="draw-stars" id="draw-stars" aria-live="polite" hidden></div>
+
+      <footer class="draw-footer">
+        <button class="btn-secondary" id="btn-draw-clear" type="button">🧹 Löschen</button>
+        <button class="btn-repeat" id="btn-draw-repeat" type="button" aria-label="Buchstabe wiederholen">
+          <span aria-hidden="true">🔁</span> Hören
+        </button>
+        <button class="btn-primary" id="btn-draw-next" type="button">Weiter ▶</button>
       </footer>
     </section>
   </main>

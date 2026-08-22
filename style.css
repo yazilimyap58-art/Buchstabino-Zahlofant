@@ -284,9 +284,85 @@ body {
   height: clamp(220px, 40vh, 320px);
 }
 
-.motif-stage--scatter .motif-item {
+.motif-stage--scatter .motif-item,
+.motif-stage--scatter .letter-tile {
   position: absolute;
   transform: translate(-50%, -50%);
+}
+
+/* Hören: großes Emoji als visueller Hinweis */
+.hear-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.hear-hint__emoji {
+  font-size: 5.5rem;
+  line-height: 1;
+}
+
+/* Finden: antippbare Buchstaben-Kacheln */
+.letter-tile {
+  min-width: 60px;
+  min-height: 60px;
+  padding: var(--space-xs);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-option-bg);
+  color: var(--color-text);
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: all var(--transition-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .letter-tile:hover {
+    background: var(--color-option-hover);
+    transform: translate(-50%, -50%) translateY(-2px);
+    box-shadow: var(--shadow-medium);
+  }
+}
+
+.letter-tile:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.letter-tile:disabled {
+  cursor: default;
+}
+
+.letter-tile.correct {
+  background: rgba(74, 222, 128, 0.2);
+  color: var(--color-correct);
+  animation: correctPulseTile 0.6s ease;
+}
+
+.letter-tile.wrong {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--color-wrong);
+  animation: shakeTile 0.4s ease;
+}
+
+/* Wie correctPulse/shake, aber unter Beibehaltung des translate(-50%, -50%)
+   Positionierungs-Transforms der Kacheln - sonst springt die Kachel während
+   der Animation kurz an die obere linke Ecke der Bühne. */
+@keyframes correctPulseTile {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.15); }
+}
+
+@keyframes shakeTile {
+  0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+  20% { transform: translate(-50%, -50%) translateX(-8px); }
+  40% { transform: translate(-50%, -50%) translateX(8px); }
+  60% { transform: translate(-50%, -50%) translateX(-8px); }
+  80% { transform: translate(-50%, -50%) translateX(8px); }
 }
 
 /* Addieren/Subtrahieren: zwei Gruppen nebeneinander */
@@ -346,6 +422,10 @@ body {
 }
 
 /* Options Container */
+.options-container[hidden] {
+  display: none;
+}
+
 .options-container {
   display: grid;
   gap: var(--space-sm);
@@ -389,6 +469,10 @@ body {
   outline-offset: 2px;
 }
 
+.option-btn--letter {
+  font-size: 2rem;
+}
+
 .option-btn.correct {
   background: rgba(74, 222, 128, 0.2);
   border-color: var(--color-correct);
@@ -415,6 +499,80 @@ body {
   40% { transform: translateX(8px); }
   60% { transform: translateX(-8px); }
   80% { transform: translateX(8px); }
+}
+
+/* ============================
+   Zeichnen-Screen (Buchstaben nachfahren)
+   ============================ */
+.draw-container {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md) var(--space-lg);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  animation: fadeInUp 0.4s var(--transition-fast) both;
+}
+
+.draw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.draw-question {
+  font-size: 1.125rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.draw-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 360px;
+  margin: 0 auto;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.draw-guide-canvas,
+.draw-ink-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.draw-guide-canvas {
+  pointer-events: none;
+}
+
+.draw-ink-canvas {
+  touch-action: none;
+}
+
+.draw-stars {
+  text-align: center;
+  font-size: 2rem;
+  letter-spacing: 0.25em;
+}
+
+.draw-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.draw-footer .btn-primary,
+.draw-footer .btn-secondary {
+  flex: 1;
+  min-width: 100px;
 }
 
 /* ============================

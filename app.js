@@ -29,8 +29,54 @@ const CONFIG = {
       max: 10,
       addPrompt: 'Wie viele sind es zusammen?',
       subPrompt: 'Wie viele bleiben übrig?'
+    },
+    lettersHear: {
+      id: 'lettersHear',
+      name: 'Hören',
+      icon: '👂',
+      prompt: 'Welcher Buchstabe wurde genannt?'
+    },
+    lettersFind: {
+      id: 'lettersFind',
+      name: 'Finden',
+      icon: '🔍',
+      tileCount: 6
+    },
+    lettersDraw: {
+      id: 'lettersDraw',
+      name: 'Zeichnen',
+      icon: '✏️'
     }
   },
+  // Buchstaben mit Beispielwort für "Hören"/"Finden" (Anlaut-Motiv)
+  letters: [
+    { upper: 'A', lower: 'a', word: 'Apfel', emoji: '🍎' },
+    { upper: 'B', lower: 'b', word: 'Ball', emoji: '⚽' },
+    { upper: 'C', lower: 'c', word: 'Clown', emoji: '🤡' },
+    { upper: 'D', lower: 'd', word: 'Drache', emoji: '🐉' },
+    { upper: 'E', lower: 'e', word: 'Elefant', emoji: '🐘' },
+    { upper: 'F', lower: 'f', word: 'Fisch', emoji: '🐟' },
+    { upper: 'G', lower: 'g', word: 'Giraffe', emoji: '🦒' },
+    { upper: 'H', lower: 'h', word: 'Hund', emoji: '🐶' },
+    { upper: 'I', lower: 'i', word: 'Igel', emoji: '🦔' },
+    { upper: 'J', lower: 'j', word: 'Jojo', emoji: '🪀' },
+    { upper: 'K', lower: 'k', word: 'Katze', emoji: '🐱' },
+    { upper: 'L', lower: 'l', word: 'Löwe', emoji: '🦁' },
+    { upper: 'M', lower: 'm', word: 'Maus', emoji: '🐭' },
+    { upper: 'N', lower: 'n', word: 'Nashorn', emoji: '🦏' },
+    { upper: 'O', lower: 'o', word: 'Orange', emoji: '🍊' },
+    { upper: 'P', lower: 'p', word: 'Pinguin', emoji: '🐧' },
+    { upper: 'Q', lower: 'q', word: 'Qualle', emoji: '🪼' },
+    { upper: 'R', lower: 'r', word: 'Rakete', emoji: '🚀' },
+    { upper: 'S', lower: 's', word: 'Sonne', emoji: '☀️' },
+    { upper: 'T', lower: 't', word: 'Tiger', emoji: '🐯' },
+    { upper: 'U', lower: 'u', word: 'Uhu', emoji: '🦉' },
+    { upper: 'V', lower: 'v', word: 'Vogel', emoji: '🐦' },
+    { upper: 'W', lower: 'w', word: 'Wal', emoji: '🐋' },
+    { upper: 'X', lower: 'x', word: 'Xylophon', emoji: '🎹' },
+    { upper: 'Y', lower: 'y', word: 'Yacht', emoji: '⛵' },
+    { upper: 'Z', lower: 'z', word: 'Zebra', emoji: '🦓' }
+  ],
   // Emoji motifs (can be extended)
   motifs: [
     { name: 'Schmetterling', plural: 'Schmetterlinge', emoji: '🦋', category: 'tier' },
@@ -68,8 +114,9 @@ const EL = {
   // Screens
   screenCategorySelect: document.getElementById('screen-category-select'),
   screenModeSelect: document.getElementById('screen-mode-select'),
-  screenLettersSoon: document.getElementById('screen-letters-soon'),
+  screenLettersModeSelect: document.getElementById('screen-letters-mode-select'),
   screenGame: document.getElementById('screen-game'),
+  screenLetterDraw: document.getElementById('screen-letter-draw'),
   categoryCards: document.querySelectorAll('.category-card'),
   modeCards: document.querySelectorAll('.mode-card[data-mode]'),
   btnsBackToCategories: document.querySelectorAll('.btn-back-category'),
@@ -78,8 +125,9 @@ const EL = {
   mascotCategoryLetters: document.getElementById('mascot-category-letters'),
   mascotCategoryNumbers: document.getElementById('mascot-category-numbers'),
   mascotModeSelect: document.getElementById('mascot-mode-select'),
-  mascotLettersSoon: document.getElementById('mascot-letters-soon'),
+  mascotLettersModeSelect: document.getElementById('mascot-letters-mode-select'),
   mascotGame: document.getElementById('mascot-game'),
+  mascotDraw: document.getElementById('mascot-draw'),
 
   // Header
   progressBar: document.querySelector('.progress-bar'),
@@ -91,6 +139,7 @@ const EL = {
   taskQuestion: document.getElementById('task-question'),
 
   // Options
+  optionsContainer: document.querySelector('.options-container'),
   optionButtons: document.querySelectorAll('.option-btn'),
 
   // Feedback
@@ -106,7 +155,16 @@ const EL = {
   pauseModal: document.getElementById('pause-modal'),
   pauseStats: document.getElementById('pause-stats'),
   btnResume: document.getElementById('btn-resume'),
-  btnRestart: document.getElementById('btn-restart')
+  btnRestart: document.getElementById('btn-restart'),
+
+  // Zeichnen-Screen
+  drawQuestion: document.getElementById('draw-question'),
+  drawGuideCanvas: document.getElementById('draw-guide-canvas'),
+  drawInkCanvas: document.getElementById('draw-ink-canvas'),
+  drawStars: document.getElementById('draw-stars'),
+  btnDrawClear: document.getElementById('btn-draw-clear'),
+  btnDrawRepeat: document.getElementById('btn-draw-repeat'),
+  btnDrawNext: document.getElementById('btn-draw-next')
 };
 
 /* ----------------------------
@@ -132,8 +190,10 @@ const TTS = {
   },
 
   // Play pre-loaded audio effect (correct/wrong). Returns a promise that
-  // resolves once the audio/speech has finished playing.
-  playEffect(type, number) {
+  // resolves once the audio/speech has finished playing. `value` ist bei
+  // Zahlen-Modi eine Zahl, bei Buchstaben-Modi ein einzelner Buchstabe -
+  // deshalb eigene Formulierung statt "Es sind X" (klingt bei Buchstaben falsch).
+  playEffect(type, value, isLetter = false) {
     const audioEl = document.getElementById(`audio-${type}`);
     if (audioEl.src) {
       audioEl.currentTime = 0;
@@ -143,7 +203,12 @@ const TTS = {
     }
     // Fallback to TTS for feedback
     // Kein Punkt direkt nach der Zahl: sonst liest die Sprachausgabe sie als Ordinalzahl ("dritter" statt "drei")
-    const text = type === 'correct' ? `Richtig! Es sind ${number}` : `Falsch! Es sind nicht ${number}`;
+    let text;
+    if (isLetter) {
+      text = type === 'correct' ? `Richtig! Das ist ${value}` : `Falsch! Das ist nicht ${value}`;
+    } else {
+      text = type === 'correct' ? `Richtig! Es sind ${value}` : `Falsch! Es sind nicht ${value}`;
+    }
     return this.speak(text, 'de-DE', {rate: 0.85}).catch(() => {});
   }
 };
@@ -219,12 +284,12 @@ const Game = {
   showScreen(name) {
     EL.screenCategorySelect.hidden = name !== 'category-select';
     EL.screenModeSelect.hidden = name !== 'mode-select';
-    EL.screenLettersSoon.hidden = name !== 'letters-soon';
+    EL.screenLettersModeSelect.hidden = name !== 'letters-mode-select';
     EL.screenGame.hidden = name !== 'game';
+    EL.screenLetterDraw.hidden = name !== 'letter-draw';
   },
 
-  // Erste Ebene: Kategoriewahl (Buchstaben/Zahlen). Buchstaben hat noch
-  // keine eigenen Minispiele, deshalb nur ein Platzhalter-Screen.
+  // Erste Ebene: Kategoriewahl (Buchstaben/Zahlen)
   selectCategory(categoryId) {
     const firstVisit = !greetedAreas.has(categoryId);
     greetedAreas.add(categoryId);
@@ -237,11 +302,11 @@ const Game = {
         Mascot.set(EL.mascotModeSelect, 'zahlofant', 'idle');
       }
     } else if (categoryId === 'letters') {
-      this.showScreen('letters-soon');
+      this.showScreen('letters-mode-select');
       if (firstVisit) {
-        Mascot.greet(EL.mascotLettersSoon, 'buchstabino');
+        Mascot.greet(EL.mascotLettersModeSelect, 'buchstabino');
       } else {
-        Mascot.set(EL.mascotLettersSoon, 'buchstabino', 'idle');
+        Mascot.set(EL.mascotLettersModeSelect, 'buchstabino', 'idle');
       }
     }
   },
@@ -250,9 +315,18 @@ const Game = {
     STATE.mode = modeId;
     STATE.streak = 0;
     this.saveState();
+
+    if (modeId === 'lettersDraw') {
+      this.showScreen('letter-draw');
+      Mascot.greet(EL.mascotDraw, 'buchstabino');
+      LetterDraw.start();
+      return;
+    }
+
     this.showScreen('game');
     this.updateUI();
-    Mascot.greet(EL.mascotGame, 'zahlofant');
+    const character = modeId === 'lettersHear' || modeId === 'lettersFind' ? 'buchstabino' : 'zahlofant';
+    Mascot.greet(EL.mascotGame, character);
     this.generateTask();
   },
 
@@ -309,12 +383,34 @@ const Game = {
         options = this.generateDistractors(answer, max, 2);
         groups = [{ motif: motifA, count: total, operator: '−' }, { motif: motifB, count: taken }];
       }
+    } else if (STATE.mode === 'lettersHear') {
+      const useUpper = Math.random() < 0.5;
+      const target = this.pickRandomLetters(1)[0];
+      const letterCase = useUpper ? 'upper' : 'lower';
+      answer = target[letterCase];
+      displayPrompt = modeCfg.prompt;
+      const distractorLetters = this.pickRandomLetters(2, [target]);
+      options = [answer, ...distractorLetters.map(l => l[letterCase])];
+      groups = [{ motif: target, count: 1 }]; // liefert Emoji-Hinweis fürs Motiv-Stage
+    } else if (STATE.mode === 'lettersFind') {
+      const { tileCount } = modeCfg;
+      const useUpper = Math.random() < 0.5;
+      const target = this.pickRandomLetters(1)[0];
+      const letterCase = useUpper ? 'upper' : 'lower';
+      answer = target[letterCase];
+      const distractorLetters = this.pickRandomLetters(tileCount - 1, [target]);
+      const tiles = [
+        { char: answer, correct: true },
+        ...distractorLetters.map(l => ({ char: l[Math.random() < 0.5 ? 'upper' : 'lower'], correct: false }))
+      ].sort(() => Math.random() - 0.5);
+      displayPrompt = `Wo ist der Buchstabe „${answer}“?`;
+      groups = [{ motif: target, tiles }];
     } else {
       throw new Error('No mode selected');
     }
 
     // Shuffle options
-    options = options.sort(() => Math.random() - 0.5);
+    if (options) options = options.sort(() => Math.random() - 0.5);
 
     STATE.currentTask = { answer, options, groups, displayPrompt, mode: STATE.mode, operation };
     this.renderTask();
@@ -325,6 +421,14 @@ const Game = {
 
   pickRandomMotifs(count) {
     const shuffled = [...CONFIG.motifs].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+  },
+
+  // Wählt zufällige, eindeutige Buchstaben aus CONFIG.letters, optional ohne die in `exclude` genannten
+  pickRandomLetters(count, exclude = []) {
+    const excludeUppers = new Set(exclude.map(l => l.upper));
+    const pool = CONFIG.letters.filter(l => !excludeUppers.has(l.upper));
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, count);
   },
 
@@ -347,27 +451,72 @@ const Game = {
     if (mode === 'count') {
       EL.motifStage.classList.add('motif-stage--scatter');
       this.renderScatteredMotifs(groups[0].motif, answer);
-    } else {
+    } else if (mode === 'arithmetic') {
       EL.motifStage.classList.add('motif-stage--groups');
       this.renderMotifGroups(groups);
+    } else if (mode === 'lettersHear') {
+      EL.motifStage.classList.add('motif-stage--groups');
+      this.renderHearHint(groups[0].motif);
+    } else if (mode === 'lettersFind') {
+      EL.motifStage.classList.add('motif-stage--scatter');
+      this.renderLetterTiles(groups[0].tiles);
     }
 
     // Set question text (short prompt only, never the raw object sequence)
     EL.taskQuestion.textContent = displayPrompt;
 
-    // Set option buttons
-    EL.optionButtons.forEach((btn, idx) => {
-      btn.dataset.value = options[idx];
-      btn.textContent = options[idx];
-      btn.className = 'option-btn'; // reset
-      btn.disabled = false;
-      btn.style.opacity = '';
-      btn.removeAttribute('aria-pressed');
-      btn.blur(); // verhindert, dass der Fokus-/Highlight-Ring der letzten Runde sichtbar bleibt
-    });
+    // Finden: der gesuchte Buchstabe wird direkt in der Bühne angetippt,
+    // die 3 Options-Buttons werden dafür nicht gebraucht
+    EL.optionsContainer.hidden = mode === 'lettersFind';
+
+    if (mode !== 'lettersFind') {
+      EL.optionButtons.forEach((btn, idx) => {
+        btn.dataset.value = options[idx];
+        btn.textContent = options[idx];
+        btn.className = mode === 'lettersHear' ? 'option-btn option-btn--letter' : 'option-btn'; // reset
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.removeAttribute('aria-pressed');
+        btn.blur(); // verhindert, dass der Fokus-/Highlight-Ring der letzten Runde sichtbar bleibt
+      });
+    }
 
     // Clear feedback
     EL.feedbackArea.hidden = true;
+  },
+
+  // Hören: großes Beispiel-Emoji als visueller Hinweis, während TTS den Buchstaben ansagt
+  renderHearHint(letterMotif) {
+    const item = document.createElement('div');
+    item.className = 'hear-hint';
+    item.innerHTML = `<div class="hear-hint__emoji" aria-hidden="true">${letterMotif.emoji}</div>`;
+    EL.motifStage.appendChild(item);
+  },
+
+  // Finden: antippbare Buchstaben-Kacheln über die Bühne verteilt
+  renderLetterTiles(tiles) {
+    const cols = Math.ceil(Math.sqrt(tiles.length));
+    const rows = Math.ceil(tiles.length / cols);
+    const cellW = 100 / cols;
+    const cellH = 100 / rows;
+
+    tiles.forEach((tile, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const jitterX = 0.2 + Math.random() * 0.6;
+      const jitterY = 0.2 + Math.random() * 0.6;
+      const left = (col + jitterX) * cellW;
+      const top = (row + jitterY) * cellH;
+
+      const tileEl = document.createElement('button');
+      tileEl.type = 'button';
+      tileEl.className = 'letter-tile';
+      tileEl.style.left = `${left}%`;
+      tileEl.style.top = `${top}%`;
+      tileEl.textContent = tile.char;
+      tileEl.dataset.correct = tile.correct ? 'true' : 'false';
+      EL.motifStage.appendChild(tileEl);
+    });
   },
 
   // Zählen: Objekte nicht überlappend über die Bühne verteilt
@@ -424,18 +573,38 @@ const Game = {
     return count === 1 ? motif.name : motif.plural;
   },
 
+  // Zahlofant rechnet/zählt, Buchstabino ist für Buchstaben-Modi zuständig
+  mascotCharacter() {
+    return (STATE.mode === 'lettersHear' || STATE.mode === 'lettersFind' || STATE.mode === 'lettersDraw')
+      ? 'buchstabino' : 'zahlofant';
+  },
+
   speakQuestion() {
     if (!STATE.isPlaying) return;
     const { displayPrompt, mode, groups, operation } = STATE.currentTask;
+    const character = this.mascotCharacter();
 
     // Während die Aufgabe vorgelesen wird, "denkt" das Maskottchen nach;
     // danach zurück zu idle (egal ob Sprachausgabe erfolgreich war oder nicht).
-    Mascot.set(EL.mascotGame, 'zahlofant', 'thinking');
-    const resetMascotIdle = () => Mascot.set(EL.mascotGame, 'zahlofant', 'idle');
+    Mascot.set(EL.mascotGame, character, 'thinking');
+    const resetMascotIdle = () => Mascot.set(EL.mascotGame, character, 'idle');
 
     if (mode === 'count') {
       // Nur die kurze Frage vorlesen, keine Objekt-Wiederholung
       TTS.speak(displayPrompt, 'de-DE', {rate: 0.9}).then(resetMascotIdle, resetMascotIdle);
+      return;
+    }
+
+    if (mode === 'lettersHear') {
+      // Buchstabe + Beispielwort ansagen, z.B. "B wie Ball"
+      const target = groups[0].motif;
+      const spokenLetter = STATE.currentTask.answer;
+      TTS.speak(`${spokenLetter} wie ${target.word}`, 'de-DE', {rate: 0.8}).then(resetMascotIdle, resetMascotIdle);
+      return;
+    }
+
+    if (mode === 'lettersFind') {
+      TTS.speak(`Wo ist der Buchstabe ${STATE.currentTask.answer}?`, 'de-DE', {rate: 0.85}).then(resetMascotIdle, resetMascotIdle);
       return;
     }
 
@@ -455,13 +624,13 @@ const Game = {
     const btn = event.target.closest('.option-btn');
     if (!btn) return;
 
-    const chosen = Number(btn.dataset.value);
     const { answer } = STATE.currentTask;
 
     // Disable all options during feedback
     EL.optionButtons.forEach(b => b.disabled = true);
 
-    if (chosen === answer) {
+    // String-Vergleich statt Number(): Buchstaben-Modi liefern Buchstaben statt Zahlen als Wert
+    if (String(btn.dataset.value) === String(answer)) {
       // Correct!
       this.handleCorrect(btn);
     } else {
@@ -478,9 +647,10 @@ const Game = {
     // requestAnimationFrame pausiert z.B. komplett wenn der Tab in den
     // Hintergrund gerät, und speechSynthesis feuert nicht überall "onend" -
     // ohne Fallback würde das Spiel dann auf "Richtig" hängen bleiben.
+    const isLetterMode = STATE.mode === 'lettersHear' || STATE.mode === 'lettersFind';
     const confettiDone = withTimeout(Confetti.trigger(), 2500);
-    const audioDone = withTimeout(TTS.playEffect('correct', STATE.currentTask.answer), 4000);
-    Mascot.celebrate(EL.mascotGame, 'zahlofant');
+    const audioDone = withTimeout(TTS.playEffect('correct', STATE.currentTask.answer, isLetterMode), 4000);
+    Mascot.celebrate(EL.mascotGame, this.mascotCharacter());
 
     // Update state
     STATE.streak++;
@@ -498,12 +668,16 @@ const Game = {
     });
   },
 
-  handleWrong(wrongBtn) {
+  // `siblings` sind die anderen antippbaren Elemente derselben Aufgabe (Options-Buttons
+  // oder, im Finden-Modus, die Buchstaben-Kacheln) - die werden nach kurzer Pause wieder aktiv.
+  handleWrong(wrongBtn, siblings = EL.optionButtons) {
     wrongBtn.classList.add('wrong');
     wrongBtn.setAttribute('aria-pressed', 'true');
 
     // Play sound
-    TTS.playEffect('wrong', wrongBtn.dataset.value);
+    const isLetterMode = STATE.mode === 'lettersHear' || STATE.mode === 'lettersFind';
+    const wrongValue = wrongBtn.dataset.value ?? wrongBtn.textContent;
+    TTS.playEffect('wrong', wrongValue, isLetterMode);
 
     // Remove wrong option (as per spec)
     wrongBtn.disabled = true;
@@ -514,10 +688,25 @@ const Game = {
 
     // Re-enable all buttons except the one just marked wrong
     setTimeout(() => {
-      EL.optionButtons.forEach(btn => {
+      siblings.forEach(btn => {
         if (btn !== wrongBtn) btn.disabled = false;
       });
     }, 800);
+  },
+
+  handleLetterTileClick(event) {
+    if (!STATE.isPlaying || STATE.isPaused) return;
+    const tileEl = event.target.closest('.letter-tile');
+    if (!tileEl || tileEl.disabled) return;
+
+    const tiles = EL.motifStage.querySelectorAll('.letter-tile');
+    tiles.forEach(t => t.disabled = true);
+
+    if (tileEl.dataset.correct === 'true') {
+      this.handleCorrect(tileEl);
+    } else {
+      this.handleWrong(tileEl, tiles);
+    }
   },
 
   showFeedback(message, type) {
@@ -564,6 +753,10 @@ const Game = {
         }
       });
     });
+
+    // Buchstaben-Kacheln (Finden-Modus) werden dynamisch pro Aufgabe neu gerendert,
+    // deshalb Delegation auf die (statische) Bühne statt Einzel-Listener pro Kachel
+    EL.motifStage.addEventListener('click', this.handleLetterTileClick.bind(this));
 
     // Menu button (back to mode select)
     EL.btnMenu.addEventListener('click', () => {
@@ -738,6 +931,218 @@ const Confetti = {
 };
 
 /* ----------------------------
+   Buchstaben zeichnen (Nachfahren + Freihand)
+   ---------------------------- */
+const LetterDraw = {
+  guideCtx: null,
+  inkCtx: null,
+  width: 0,
+  height: 0,
+  isDrawing: false,
+  lastPoint: null,
+  currentLetter: null,
+  currentCase: 'upper',
+  phase: 'guided', // 'guided' | 'freehand'
+
+  init() {
+    this.guideCtx = EL.drawGuideCanvas.getContext('2d');
+    this.inkCtx = EL.drawInkCanvas.getContext('2d', { willReadFrequently: true });
+    window.addEventListener('resize', () => this.resize());
+
+    EL.drawInkCanvas.addEventListener('pointerdown', this.handlePointerDown.bind(this));
+    EL.drawInkCanvas.addEventListener('pointermove', this.handlePointerMove.bind(this));
+    EL.drawInkCanvas.addEventListener('pointerup', this.handlePointerUp.bind(this));
+    EL.drawInkCanvas.addEventListener('pointercancel', this.handlePointerUp.bind(this));
+
+    EL.btnDrawClear.addEventListener('click', () => this.clearInk());
+    EL.btnDrawRepeat.addEventListener('click', () => this.speakLetter());
+    EL.btnDrawNext.addEventListener('click', () => this.handleNext());
+  },
+
+  resize() {
+    const rect = EL.drawInkCanvas.parentElement.getBoundingClientRect();
+    if (rect.width === 0) return; // Screen gerade nicht sichtbar
+    this.width = rect.width;
+    this.height = rect.height;
+    [EL.drawGuideCanvas, EL.drawInkCanvas].forEach(canvas => {
+      canvas.width = rect.width * devicePixelRatio;
+      canvas.height = rect.height * devicePixelRatio;
+    });
+    this.guideCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    this.inkCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    if (this.currentLetter && this.phase === 'guided') this.drawGuide();
+  },
+
+  start() {
+    this.resize();
+    this.pickNewLetter();
+  },
+
+  pickNewLetter() {
+    this.currentLetter = Game.pickRandomLetters(1)[0];
+    this.currentCase = Math.random() < 0.5 ? 'upper' : 'lower';
+    this.beginGuidedPhase();
+  },
+
+  beginGuidedPhase() {
+    this.phase = 'guided';
+    EL.drawGuideCanvas.hidden = false;
+    EL.drawStars.hidden = true;
+    EL.btnDrawNext.textContent = 'Fertig ✓';
+    EL.drawQuestion.textContent = `Fahre den Buchstaben „${this.currentLetter[this.currentCase]}“ nach`;
+    this.clearInk();
+    this.drawGuide();
+    this.speakLetter();
+  },
+
+  beginFreehandPhase() {
+    this.phase = 'freehand';
+    EL.drawGuideCanvas.hidden = true;
+    EL.drawStars.hidden = true;
+    EL.btnDrawNext.textContent = 'Weiter ▶';
+    EL.drawQuestion.textContent = `Male den Buchstaben „${this.currentLetter[this.currentCase]}“ frei, ohne Hilfslinie`;
+    this.clearInk();
+  },
+
+  // Führungslinie: großer, transparenter Buchstabe aus Systemschrift statt
+  // handgepflegter Pfaddaten pro Buchstabe (kein Content-Aufwand für Strichrichtung/Pfeile -
+  // dafür auch keine Schreibrichtungs-Pfeile in dieser ersten Version).
+  drawGuide() {
+    const ctx = this.guideCtx;
+    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.save();
+    ctx.font = `bold ${Math.floor(this.height * 0.72)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.3)';
+    ctx.fillText(this.currentLetter[this.currentCase], this.width / 2, this.height / 2 + this.height * 0.02);
+    ctx.restore();
+  },
+
+  clearInk() {
+    this.inkCtx.clearRect(0, 0, this.width, this.height);
+  },
+
+  speakLetter() {
+    Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
+    const resetIdle = () => Mascot.set(EL.mascotDraw, 'buchstabino', 'idle');
+    TTS.speak(`${this.currentLetter[this.currentCase]} wie ${this.currentLetter.word}`, 'de-DE', {rate: 0.8})
+      .then(resetIdle, resetIdle);
+  },
+
+  getPoint(event) {
+    const rect = EL.drawInkCanvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  },
+
+  handlePointerDown(event) {
+    if (STATE.isPaused) return;
+    event.preventDefault();
+    EL.drawInkCanvas.setPointerCapture(event.pointerId);
+    this.isDrawing = true;
+    this.lastPoint = this.getPoint(event);
+  },
+
+  handlePointerMove(event) {
+    if (!this.isDrawing) return;
+    event.preventDefault();
+    const point = this.getPoint(event);
+    const ctx = this.inkCtx;
+    ctx.strokeStyle = '#4ade80';
+    ctx.lineWidth = 16;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(this.lastPoint.x, this.lastPoint.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    this.lastPoint = point;
+  },
+
+  handlePointerUp() {
+    this.isDrawing = false;
+    this.lastPoint = null;
+  },
+
+  handleNext() {
+    if (this.phase === 'guided') {
+      const score = this.scoreDrawing();
+      this.showStars(score);
+      STATE.streak++;
+      STATE.totalCorrect++;
+      Game.saveState();
+      Mascot.celebrate(EL.mascotDraw, 'buchstabino');
+
+      const confettiDone = withTimeout(Confetti.trigger(), 2500);
+      const audioDone = withTimeout(TTS.speak(this.praiseFor(score), 'de-DE', {rate: 0.9}), 3000);
+      Promise.all([confettiDone, audioDone]).then(() => this.beginFreehandPhase());
+    } else {
+      Mascot.celebrate(EL.mascotDraw, 'buchstabino');
+      const confettiDone = withTimeout(Confetti.trigger(), 2000);
+      const audioDone = withTimeout(TTS.speak('Toll gemalt!', 'de-DE', {rate: 0.9}), 2500);
+      Promise.all([confettiDone, audioDone]).then(() => this.pickNewLetter());
+    }
+  },
+
+  praiseFor(score) {
+    if (score >= 0.75) return 'Super gemacht!';
+    if (score >= 0.4) return 'Gut gemacht, weiter so!';
+    return 'Toll versucht, das übst du gleich noch mal!';
+  },
+
+  showStars(score) {
+    const starCount = score >= 0.75 ? 3 : score >= 0.4 ? 2 : 1; // nie 0 Sterne: sanftes Feedback statt harter Fehlermeldung
+    EL.drawStars.textContent = '⭐'.repeat(starCount) + '☆'.repeat(3 - starCount);
+    EL.drawStars.hidden = false;
+  },
+
+  // Grobe Trefferanalyse per Grid-Sampling statt exaktem Pixelvergleich:
+  // vergleicht, wie viel der Führungslinie mit Tinte bedeckt wurde (Coverage)
+  // und wie viel der Tinte in der Nähe der Führungslinie liegt (Precision).
+  // Großzügige Toleranz (toleranceCells), da kleine Kinderhände nicht
+  // pixelgenau zeichnen können und das keine harte Prüfung sein soll.
+  scoreDrawing() {
+    const gridStep = 8;
+    const toleranceCells = 2;
+    const dpr = window.devicePixelRatio || 1;
+    const guideCanvas = EL.drawGuideCanvas;
+    const inkCanvas = EL.drawInkCanvas;
+    const guideData = this.guideCtx.getImageData(0, 0, guideCanvas.width, guideCanvas.height);
+    const inkData = this.inkCtx.getImageData(0, 0, inkCanvas.width, inkCanvas.height);
+    const cols = Math.floor(this.width / gridStep);
+    const rows = Math.floor(this.height / gridStep);
+
+    const alphaAt = (imageData, x, y) => {
+      const px = Math.floor(x * dpr);
+      const py = Math.floor(y * dpr);
+      if (px < 0 || py < 0 || px >= imageData.width || py >= imageData.height) return 0;
+      return imageData.data[(py * imageData.width + px) * 4 + 3];
+    };
+
+    const guideCells = [];
+    const inkCells = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = c * gridStep + gridStep / 2;
+        const y = r * gridStep + gridStep / 2;
+        if (alphaAt(guideData, x, y) > 40) guideCells.push([c, r]);
+        if (alphaAt(inkData, x, y) > 40) inkCells.push([c, r]);
+      }
+    }
+
+    if (guideCells.length === 0 || inkCells.length === 0) return 0;
+
+    const hasNeighbor = (cells, cell) =>
+      cells.some(([c, r]) => Math.abs(c - cell[0]) <= toleranceCells && Math.abs(r - cell[1]) <= toleranceCells);
+
+    const coverage = guideCells.filter(cell => hasNeighbor(inkCells, cell)).length / guideCells.length;
+    const precision = inkCells.filter(cell => hasNeighbor(guideCells, cell)).length / inkCells.length;
+
+    return coverage * 0.6 + precision * 0.4;
+  }
+};
+
+/* ----------------------------
    Initialization
    ---------------------------- */
 function initGame() {
@@ -746,6 +1151,7 @@ function initGame() {
 
   // Initialize game
   Game.init();
+  LetterDraw.init();
 
   // Expose for debugging
   window.Game = Game;
@@ -753,6 +1159,7 @@ function initGame() {
   window.Config = CONFIG;
   window.Confetti = Confetti;
   window.TTS = TTS;
+  window.LetterDraw = LetterDraw;
 }
 
 // Start when DOM loaded
