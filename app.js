@@ -943,6 +943,8 @@ const LetterDraw = {
   currentLetter: null,
   currentCase: 'upper',
   phase: 'guided', // 'guided' | 'freehand'
+  guideBandWidth: 10, // Breite der Führungslinie (CSS px) - dünn genug, damit sie sichtbar hohl wirkt (zum Nachfahren) statt wie eine ausgefüllte Fläche
+  inkLineWidth: 16,
 
   init() {
     this.guideCtx = EL.drawGuideCanvas.getContext('2d');
@@ -1004,9 +1006,13 @@ const LetterDraw = {
     this.clearInk();
   },
 
-  // Führungslinie: großer, transparenter Buchstabe aus Systemschrift statt
-  // handgepflegter Pfaddaten pro Buchstabe (kein Content-Aufwand für Strichrichtung/Pfeile -
+  // Führungslinie: großer Buchstabe aus Systemschrift statt handgepflegter
+  // Pfaddaten pro Buchstabe (kein Content-Aufwand für Strichrichtung/Pfeile -
   // dafür auch keine Schreibrichtungs-Pfeile in dieser ersten Version).
+  // Wichtig: strokeText() statt fillText()! Eine gefüllte Fläche würde bei
+  // breiten Buchstaben fast den ganzen Canvas abdecken - dann "besteht" jede
+  // beliebige Kritzelei irgendwo in der Fläche die Trefferprüfung. Der Umriss
+  // (dünne Linie) zwingt zum tatsächlichen Nachfahren.
   drawGuide() {
     const ctx = this.guideCtx;
     ctx.clearRect(0, 0, this.width, this.height);
@@ -1014,8 +1020,10 @@ const LetterDraw = {
     ctx.font = `bold ${Math.floor(this.height * 0.72)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(100, 116, 139, 0.3)';
-    ctx.fillText(this.currentLetter[this.currentCase], this.width / 2, this.height / 2 + this.height * 0.02);
+    ctx.lineWidth = this.guideBandWidth;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(100, 116, 139, 0.55)';
+    ctx.strokeText(this.currentLetter[this.currentCase], this.width / 2, this.height / 2 + this.height * 0.02);
     ctx.restore();
   },
 
@@ -1049,7 +1057,7 @@ const LetterDraw = {
     const point = this.getPoint(event);
     const ctx = this.inkCtx;
     ctx.strokeStyle = '#4ade80';
-    ctx.lineWidth = 16;
+    ctx.lineWidth = this.inkLineWidth;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -1071,11 +1079,24 @@ const LetterDraw = {
       STATE.streak++;
       STATE.totalCorrect++;
       Game.saveState();
-      Mascot.celebrate(EL.mascotDraw, 'buchstabino');
 
-      const confettiDone = withTimeout(Confetti.trigger(), 2500);
       const audioDone = withTimeout(TTS.speak(this.praiseFor(score), 'de-DE', {rate: 0.9}), 3000);
-      Promise.all([confettiDone, audioDone]).then(() => this.beginFreehandPhase());
+
+      // Konfetti/Feiern nur bei einer echten, erkennbaren Nachfahr-Leistung -
+      // sonst würde jede beliebige Kritzelei optisch genauso "gefeiert" wie
+      // ein sauberer Nachfahr-Versuch. Kein hartes "Falsch", aber ein
+      // spürbarer Unterschied im Feedback (siehe scoreDrawing()).
+      if (score >= this.passScore) {
+        Mascot.celebrate(EL.mascotDraw, 'buchstabino');
+        const confettiDone = withTimeout(Confetti.trigger(), 2500);
+        Promise.all([confettiDone, audioDone]).then(() => this.beginFreehandPhase());
+      } else {
+        Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
+        audioDone.then(() => {
+          Mascot.set(EL.mascotDraw, 'buchstabino', 'idle');
+          this.beginFreehandPhase();
+        });
+      }
     } else {
       Mascot.celebrate(EL.mascotDraw, 'buchstabino');
       const confettiDone = withTimeout(Confetti.trigger(), 2000);
@@ -1084,26 +1105,30 @@ const LetterDraw = {
     }
   },
 
+  passScore: 0.5, // ab hier gilt der Versuch als "getroffen" (Konfetti/Feiern)
+
   praiseFor(score) {
     if (score >= 0.75) return 'Super gemacht!';
-    if (score >= 0.4) return 'Gut gemacht, weiter so!';
-    return 'Toll versucht, das übst du gleich noch mal!';
+    if (score >= this.passScore) return 'Gut gemacht, weiter so!';
+    return 'Guter Versuch! Schau dir die Linie noch mal genau an und probier es gleich noch mal.';
   },
 
   showStars(score) {
-    const starCount = score >= 0.75 ? 3 : score >= 0.4 ? 2 : 1; // nie 0 Sterne: sanftes Feedback statt harter Fehlermeldung
+    const starCount = score >= 0.75 ? 3 : score >= this.passScore ? 2 : 1; // nie 0 Sterne: sanftes Feedback statt harter Fehlermeldung
     EL.drawStars.textContent = '⭐'.repeat(starCount) + '☆'.repeat(3 - starCount);
     EL.drawStars.hidden = false;
   },
 
   // Grobe Trefferanalyse per Grid-Sampling statt exaktem Pixelvergleich:
   // vergleicht, wie viel der Führungslinie mit Tinte bedeckt wurde (Coverage)
-  // und wie viel der Tinte in der Nähe der Führungslinie liegt (Precision).
-  // Großzügige Toleranz (toleranceCells), da kleine Kinderhände nicht
-  // pixelgenau zeichnen können und das keine harte Prüfung sein soll.
+  // und wie viel der Tinte tatsächlich nahe der Führungslinie liegt
+  // (Precision) statt wahllos über den Canvas verteilt zu sein. Die
+  // Führungslinie selbst ist nur ein dünnes Band (siehe drawGuide()) -
+  // deshalb bestraft die Precision-Komponente wirksam große Kritzeleien, die
+  // einfach die ganze Fläche bedecken, ohne dem Buchstaben zu folgen.
   scoreDrawing() {
-    const gridStep = 8;
-    const toleranceCells = 2;
+    const gridStep = 6;
+    const toleranceCells = 1; // ±1 Zelle (~6px) Toleranz für zittrige Kinderhände, nicht mehr
     const dpr = window.devicePixelRatio || 1;
     const guideCanvas = EL.drawGuideCanvas;
     const inkCanvas = EL.drawInkCanvas;
@@ -1138,7 +1163,10 @@ const LetterDraw = {
     const coverage = guideCells.filter(cell => hasNeighbor(inkCells, cell)).length / guideCells.length;
     const precision = inkCells.filter(cell => hasNeighbor(guideCells, cell)).length / inkCells.length;
 
-    return coverage * 0.6 + precision * 0.4;
+    // Precision etwas höher gewichtet als Coverage: verhindert, dass eine große
+    // Kritzelei über die gesamte Fläche (hohe Coverage "geschenkt") allein
+    // schon als gute Leistung durchgeht - sie muss auch der Linie folgen.
+    return coverage * 0.45 + precision * 0.55;
   }
 };
 
