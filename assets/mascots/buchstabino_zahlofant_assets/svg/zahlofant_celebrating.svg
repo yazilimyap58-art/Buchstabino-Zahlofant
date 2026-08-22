@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 340" width="300" height="340">
+  <ellipse cx="72" cy="140" rx="40" ry="50" fill="#6FB1F0" stroke="#4E93D9" stroke-width="4" transform="rotate(-22 72 140)"/>
+  <ellipse cx="228" cy="140" rx="40" ry="50" fill="#6FB1F0" stroke="#4E93D9" stroke-width="4" transform="rotate(22 228 140)"/>
+
+  <ellipse cx="150" cy="198" rx="82" ry="80" fill="#8EC9FF" stroke="#4E93D9" stroke-width="5"/>
+  <ellipse cx="128" cy="262" rx="17" ry="11" fill="#4E93D9"/>
+  <ellipse cx="172" cy="262" rx="17" ry="11" fill="#4E93D9"/>
+  <circle cx="150" cy="120" r="66" fill="#8EC9FF" stroke="#4E93D9" stroke-width="5"/>
+  <ellipse cx="150" cy="206" rx="40" ry="32" fill="#C9E6FF" opacity="0.6"/>
+<path d="M150,140 Q168,110 150,84 Q140,70 152,56" fill="none" stroke="#4E93D9" stroke-width="26" stroke-linecap="round"/><path d="M150,140 Q168,110 150,84 Q140,70 152,56" fill="none" stroke="#8EC9FF" stroke-width="19" stroke-linecap="round"/>
+  <line x1="92" y1="210" x2="58" y2="140" stroke="#8EC9FF" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="58" cy="140" r="12" fill="#8EC9FF" stroke="#4E93D9" stroke-width="3"/>
+
+  <line x1="208" y1="210" x2="242" y2="140" stroke="#8EC9FF" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="242" cy="140" r="12" fill="#8EC9FF" stroke="#4E93D9" stroke-width="3"/>
+<circle cx="108" cy="128" r="12" fill="#FF8FA3" opacity="0.75"/><circle cx="192" cy="128" r="12" fill="#FF8FA3" opacity="0.75"/>
+  <path d="M114,112 Q128,96 142,112" stroke="#2B2B2B" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <path d="M158,112 Q172,96 186,112" stroke="#2B2B2B" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+
+  <path d="M120,132 Q150,166 180,132 Q150,146 120,132 Z" fill="#8C4A1C"/>
+  <path d="M126,136 Q150,150 174,136" fill="white" opacity="0.9"/>
+<polygon points="42.0,99.0 39.3,106.3 31.5,106.6 37.6,111.4 35.5,118.9 42.0,114.6 48.5,118.9 46.4,111.4 52.5,106.6 44.7,106.3" fill="#FFE066"/>
+<polygon points="258.0,90.0 255.5,96.6 248.5,96.9 254.0,101.3 252.1,108.1 258.0,104.2 263.9,108.1 262.0,101.3 267.5,96.9 260.5,96.6" fill="#FF8FA3"/>
+<polygon points="150.0,15.0 147.8,20.9 141.4,21.2 146.4,25.2 144.7,31.3 150.0,27.8 155.3,31.3 153.6,25.2 158.6,21.2 152.2,20.9" fill="#B197FC"/>
+<polygon points="230.0,192.0 228.0,197.3 222.4,197.5 226.8,201.0 225.3,206.5 230.0,203.4 234.7,206.5 233.2,201.0 237.6,197.5 232.0,197.3" fill="#8CE99A"/></svg>

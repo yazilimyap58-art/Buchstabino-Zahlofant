@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 340" width="300" height="340">
+  <ellipse cx="150" cy="192" rx="80" ry="94" fill="#FFB454" stroke="#D9822B" stroke-width="5"/>
+  <ellipse cx="150" cy="208" rx="42" ry="52" fill="#FFD08A" opacity="0.55"/>
+  <ellipse cx="122" cy="280" rx="21" ry="14" fill="#D9822B"/>
+  <ellipse cx="178" cy="280" rx="21" ry="14" fill="#D9822B"/>
+
+  <g transform="rotate(-8 150 108)">
+    <path d="M100,112 C108,44 132,8 156,14 C176,19 168,64 150,104 Z" fill="#7C6FEF" stroke="#5B4FD1" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="150" cy="112" rx="56" ry="15" fill="#7C6FEF" stroke="#5B4FD1" stroke-width="4"/>
+    <polygon points="150.0,19.0 147.1,26.0 139.5,26.6 145.2,31.5 143.5,38.9 150.0,35.0 156.5,38.9 154.8,31.5 160.5,26.6 152.9,26.0" fill="#FFF3B0"/>
+  </g>
+
+  <line x1="80" y1="195" x2="66" y2="230" stroke="#FFB454" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="66" cy="230" r="14" fill="#FFB454" stroke="#D9822B" stroke-width="3"/>
+
+  <line x1="205" y1="192" x2="186" y2="180" stroke="#FFB454" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="186" cy="180" r="14" fill="#FFB454" stroke="#D9822B" stroke-width="3"/>
+<circle cx="104" cy="182" r="12" fill="#FF8FA3" opacity="0.75"/><circle cx="196" cy="182" r="12" fill="#FF8FA3" opacity="0.75"/><path d="M112,150 Q126,141 140,150" stroke="#5a3b1e" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <ellipse cx="128" cy="158" rx="16" ry="19" fill="white" stroke="#333" stroke-width="3"/>
+  <ellipse cx="176" cy="158" rx="16" ry="19" fill="white" stroke="#333" stroke-width="3"/>
+  <circle cx="131" cy="161" r="7" fill="#2B2B2B"/>
+  <circle cx="179" cy="161" r="7" fill="#2B2B2B"/>
+  <circle cx="134" cy="157" r="2.2" fill="white"/>
+  <circle cx="182" cy="157" r="2.2" fill="white"/>
+<ellipse cx="150" cy="190" rx="9" ry="11" fill="#7A3B00"/>
+  <g transform="translate(200,110)">
+    <text x="0" y="0" font-family="'Comic Sans MS','Segoe UI',sans-serif" font-weight="800" font-size="40" fill="#7C6FEF">?</text>
+  </g>
+</svg>

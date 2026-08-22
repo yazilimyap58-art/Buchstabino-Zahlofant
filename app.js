@@ -1,5 +1,5 @@
 // ============================
-// 🧮 Rechen-Abenteuer – App Logic
+// 🧮 Buchstabino & Zahlofant – App Logic
 // Vanilla JS Game Engine
 // ============================
 
@@ -66,9 +66,20 @@ const STATE = {
    ---------------------------- */
 const EL = {
   // Screens
+  screenCategorySelect: document.getElementById('screen-category-select'),
   screenModeSelect: document.getElementById('screen-mode-select'),
+  screenLettersSoon: document.getElementById('screen-letters-soon'),
   screenGame: document.getElementById('screen-game'),
-  modeCards: document.querySelectorAll('.mode-card'),
+  categoryCards: document.querySelectorAll('.category-card'),
+  modeCards: document.querySelectorAll('.mode-card[data-mode]'),
+  btnsBackToCategories: document.querySelectorAll('.btn-back-category'),
+
+  // Mascots
+  mascotCategoryLetters: document.getElementById('mascot-category-letters'),
+  mascotCategoryNumbers: document.getElementById('mascot-category-numbers'),
+  mascotModeSelect: document.getElementById('mascot-mode-select'),
+  mascotLettersSoon: document.getElementById('mascot-letters-soon'),
+  mascotGame: document.getElementById('mascot-game'),
 
   // Header
   progressBar: document.querySelector('.progress-bar'),
@@ -138,17 +149,53 @@ const TTS = {
 };
 
 /* ----------------------------
+   Maskottchen (Buchstabino & Zahlofant)
+   ---------------------------- */
+const MASCOT_BASE = 'assets/mascots/buchstabino_zahlofant_assets/svg/';
+
+const Mascot = {
+  // Setzt eine Pose auf einem Maskottchen-<img>. Weitere Posen (z.B.
+  // "retry") lassen sich einfach ergänzen: SVG-Datei als
+  // <character>_<pose>.svg ablegen und set()/greet()/celebrate() damit
+  // aufrufen - keine weiteren Codeänderungen nötig. Die Pose-Animation
+  // kommt automatisch aus dem [data-pose]-Selektor in style.css.
+  set(imgEl, character, pose) {
+    if (!imgEl) return;
+    imgEl.src = `${MASCOT_BASE}${character}_${pose}.svg`;
+    imgEl.dataset.pose = pose;
+  },
+
+  // Begrüßung: kurz winken, danach zurück zu idle.
+  greet(imgEl, character, holdMs = 1400) {
+    this.set(imgEl, character, 'waving');
+    setTimeout(() => this.set(imgEl, character, 'idle'), holdMs);
+  },
+
+  // Kurzes Feiern nach einer richtigen Antwort, danach zurück zu idle.
+  celebrate(imgEl, character, holdMs = 1500) {
+    this.set(imgEl, character, 'celebrating');
+    setTimeout(() => this.set(imgEl, character, 'idle'), holdMs);
+  }
+};
+
+// Merkt sich pro Session (nicht persistiert), welche Bereiche schon einmal
+// geöffnet wurden, damit die Begrüßungs-Pose nur beim ersten Öffnen läuft.
+const greetedAreas = new Set();
+
+/* ----------------------------
    Game Logic
    ---------------------------- */
 const Game = {
   init() {
     this.loadState();
     this.bindEvents();
-    this.showScreen('mode-select');
+    this.showScreen('category-select');
+    Mascot.greet(EL.mascotCategoryLetters, 'buchstabino');
+    Mascot.greet(EL.mascotCategoryNumbers, 'zahlofant');
   },
 
   loadState() {
-    const saved = localStorage.getItem('rechenAbenteuer');
+    const saved = localStorage.getItem('buchstabinoZahlofant');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -166,12 +213,37 @@ const Game = {
   },
 
   saveState() {
-    localStorage.setItem('rechenAbenteuer', JSON.stringify(STATE));
+    localStorage.setItem('buchstabinoZahlofant', JSON.stringify(STATE));
   },
 
   showScreen(name) {
+    EL.screenCategorySelect.hidden = name !== 'category-select';
     EL.screenModeSelect.hidden = name !== 'mode-select';
+    EL.screenLettersSoon.hidden = name !== 'letters-soon';
     EL.screenGame.hidden = name !== 'game';
+  },
+
+  // Erste Ebene: Kategoriewahl (Buchstaben/Zahlen). Buchstaben hat noch
+  // keine eigenen Minispiele, deshalb nur ein Platzhalter-Screen.
+  selectCategory(categoryId) {
+    const firstVisit = !greetedAreas.has(categoryId);
+    greetedAreas.add(categoryId);
+
+    if (categoryId === 'numbers') {
+      this.showScreen('mode-select');
+      if (firstVisit) {
+        Mascot.greet(EL.mascotModeSelect, 'zahlofant');
+      } else {
+        Mascot.set(EL.mascotModeSelect, 'zahlofant', 'idle');
+      }
+    } else if (categoryId === 'letters') {
+      this.showScreen('letters-soon');
+      if (firstVisit) {
+        Mascot.greet(EL.mascotLettersSoon, 'buchstabino');
+      } else {
+        Mascot.set(EL.mascotLettersSoon, 'buchstabino', 'idle');
+      }
+    }
   },
 
   selectMode(modeId) {
@@ -180,6 +252,7 @@ const Game = {
     this.saveState();
     this.showScreen('game');
     this.updateUI();
+    Mascot.greet(EL.mascotGame, 'zahlofant');
     this.generateTask();
   },
 
@@ -355,9 +428,14 @@ const Game = {
     if (!STATE.isPlaying) return;
     const { displayPrompt, mode, groups, operation } = STATE.currentTask;
 
+    // Während die Aufgabe vorgelesen wird, "denkt" das Maskottchen nach;
+    // danach zurück zu idle (egal ob Sprachausgabe erfolgreich war oder nicht).
+    Mascot.set(EL.mascotGame, 'zahlofant', 'thinking');
+    const resetMascotIdle = () => Mascot.set(EL.mascotGame, 'zahlofant', 'idle');
+
     if (mode === 'count') {
       // Nur die kurze Frage vorlesen, keine Objekt-Wiederholung
-      TTS.speak(displayPrompt, 'de-DE', {rate: 0.9}).catch(() => {});
+      TTS.speak(displayPrompt, 'de-DE', {rate: 0.9}).then(resetMascotIdle, resetMascotIdle);
       return;
     }
 
@@ -369,7 +447,7 @@ const Game = {
     } else {
       spoken = `Es gibt ${groupA.count} ${this.nameForCount(groupA.motif, groupA.count)}. Wie viele bleiben übrig, wenn du ${groupB.count} ${this.nameForCount(groupB.motif, groupB.count)} wegnimmst?`;
     }
-    TTS.speak(spoken, 'de-DE', {rate: 0.85}).catch(() => {});
+    TTS.speak(spoken, 'de-DE', {rate: 0.85}).then(resetMascotIdle, resetMascotIdle);
   },
 
   handleOptionClick(event) {
@@ -402,6 +480,7 @@ const Game = {
     // ohne Fallback würde das Spiel dann auf "Richtig" hängen bleiben.
     const confettiDone = withTimeout(Confetti.trigger(), 2500);
     const audioDone = withTimeout(TTS.playEffect('correct', STATE.currentTask.answer), 4000);
+    Mascot.celebrate(EL.mascotGame, 'zahlofant');
 
     // Update state
     STATE.streak++;
@@ -454,6 +533,20 @@ const Game = {
   },
 
   bindEvents() {
+    // Category selection (erste Ebene: Buchstaben/Zahlen)
+    EL.categoryCards.forEach(card => {
+      card.addEventListener('click', () => {
+        this.selectCategory(card.dataset.category);
+      });
+    });
+
+    // Zurück zur Kategoriewahl
+    EL.btnsBackToCategories.forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.showScreen('category-select');
+      });
+    });
+
     // Mode selection
     EL.modeCards.forEach(card => {
       card.addEventListener('click', () => {

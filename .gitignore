@@ -15,9 +15,10 @@ node_modules/
 secrets.json
 .npmrc
 
-# Noch nicht ins Spiel integriertes Material, vorerst ignoriert
+# Download-Archiv & Charaktersheet-PDF der Maskottchen-Assets, nicht Teil des Repos
+# (die eigentlichen SVG/PNG-Grafiken unter assets/mascots/ sind versioniert)
 assets/buchstabino_zahlofant_assets.zip
-assets/mascots/
+assets/mascots/**/*.pdf
 
 # Lokale Doku für AI-Assistenten, nicht Teil des öffentlichen Repos
 CLAUDE.md

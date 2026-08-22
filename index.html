@@ -20,12 +20,33 @@
 
   <main class="app-shell" role="main" aria-label="Buchstabino & Zahlofant">
 
-    <!-- Moduswahl-Screen -->
-    <section class="screen mode-select" id="screen-mode-select">
+    <!-- Kategoriewahl-Screen (erste Ebene): Buchstaben oder Zahlen -->
+    <section class="screen mode-select category-select" id="screen-category-select">
       <div class="mode-select__header">
-        <div class="mode-select__logo" aria-hidden="true">🧮</div>
-        <h1 class="mode-select__title">B&amp;Z</h1>
-        <p class="mode-select__tagline">Buchstabino &amp; Zahlofant</p>
+        <h1 class="mode-select__title">Buchstabino &amp; Zahlofant</h1>
+      </div>
+      <p class="mode-select__subtitle">Was möchtest du lernen?</p>
+
+      <div class="mode-cards">
+        <button class="mode-card category-card" type="button" data-category="letters">
+          <img class="mascot-img" id="mascot-category-letters" data-pose="idle" src="assets/mascots/buchstabino_zahlofant_assets/svg/buchstabino_idle.svg" alt="Buchstabino" width="96" height="96">
+          <span class="mode-card__title">Buchstaben</span>
+          <span class="mode-card__desc">Buchstaben hören, finden &amp; üben</span>
+        </button>
+        <button class="mode-card category-card" type="button" data-category="numbers">
+          <img class="mascot-img" id="mascot-category-numbers" data-pose="idle" src="assets/mascots/buchstabino_zahlofant_assets/svg/zahlofant_idle.svg" alt="Zahlofant" width="96" height="96">
+          <span class="mode-card__title">Zahlen</span>
+          <span class="mode-card__desc">Zählen, Addieren &amp; Subtrahieren</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Moduswahl-Screen (zweite Ebene, Kategorie "Zahlen") -->
+    <section class="screen mode-select" id="screen-mode-select" hidden>
+      <button class="btn-back btn-back-category" type="button">◀ Zurück</button>
+      <div class="mode-select__header">
+        <img class="mascot-img mascot-img--lg" id="mascot-mode-select" data-pose="idle" src="assets/mascots/buchstabino_zahlofant_assets/svg/zahlofant_idle.svg" alt="Zahlofant" width="128" height="128">
+        <h1 class="mode-select__title">Zahlen</h1>
       </div>
       <p class="mode-select__subtitle">Wähle ein Spiel:</p>
 
@@ -43,10 +64,21 @@
       </div>
     </section>
 
+    <!-- Platzhalter-Screen (zweite Ebene, Kategorie "Buchstaben" - Minispiele folgen später) -->
+    <section class="screen mode-select letters-soon" id="screen-letters-soon" hidden>
+      <button class="btn-back btn-back-category" type="button">◀ Zurück</button>
+      <div class="mode-select__header">
+        <img class="mascot-img mascot-img--lg" id="mascot-letters-soon" data-pose="idle" src="assets/mascots/buchstabino_zahlofant_assets/svg/buchstabino_idle.svg" alt="Buchstabino" width="128" height="128">
+        <h1 class="mode-select__title">Buchstaben</h1>
+      </div>
+      <p class="mode-select__subtitle">Bald geht's hier los! Buchstabino bereitet schon alles vor. ✏️</p>
+    </section>
+
     <!-- Spiel-Screen -->
     <section class="screen game-container" id="screen-game" hidden>
       <!-- Header mit Fortschritt -->
       <header class="game-header">
+        <img class="mascot-img mascot-img--sm" id="mascot-game" data-pose="idle" src="assets/mascots/buchstabino_zahlofant_assets/svg/zahlofant_idle.svg" alt="Zahlofant" width="56" height="56">
         <div class="progress-ring" role="img" aria-label="Fortschritt">
           <svg class="progress-svg" viewBox="0 0 60 60">
             <circle class="progress-bg" cx="30" cy="30" r="26"></circle>

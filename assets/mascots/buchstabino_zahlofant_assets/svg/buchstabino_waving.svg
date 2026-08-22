@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 340" width="300" height="340">
+  <ellipse cx="150" cy="192" rx="80" ry="94" fill="#FFB454" stroke="#D9822B" stroke-width="5"/>
+  <ellipse cx="150" cy="208" rx="42" ry="52" fill="#FFD08A" opacity="0.55"/>
+  <ellipse cx="122" cy="280" rx="21" ry="14" fill="#D9822B"/>
+  <ellipse cx="178" cy="280" rx="21" ry="14" fill="#D9822B"/>
+
+  <line x1="80" y1="195" x2="58" y2="232" stroke="#FFB454" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="58" cy="232" r="14" fill="#FFB454" stroke="#D9822B" stroke-width="3"/>
+
+  <line x1="216" y1="182" x2="238" y2="112" stroke="#FFB454" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="238" cy="112" r="14" fill="#FFB454" stroke="#D9822B" stroke-width="3"/>
+
+  <g transform="rotate(-4 150 108)">
+    <path d="M100,112 C108,44 132,8 156,14 C176,19 168,64 150,104 Z" fill="#7C6FEF" stroke="#5B4FD1" stroke-width="4" stroke-linejoin="round"/>
+    <ellipse cx="150" cy="112" rx="56" ry="15" fill="#7C6FEF" stroke="#5B4FD1" stroke-width="4"/>
+    <polygon points="150.0,19.0 147.1,26.0 139.5,26.6 145.2,31.5 143.5,38.9 150.0,35.0 156.5,38.9 154.8,31.5 160.5,26.6 152.9,26.0" fill="#FFF3B0"/>
+  </g>
+<circle cx="104" cy="182" r="12" fill="#FF8FA3" opacity="0.75"/><circle cx="196" cy="182" r="12" fill="#FF8FA3" opacity="0.75"/>
+  <path d="M112,155 Q126,139 140,155" stroke="#2B2B2B" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <path d="M160,155 Q174,139 188,155" stroke="#2B2B2B" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+
+  <path d="M120,178 Q150,212 180,178 Q150,192 120,178 Z" fill="#8C4A1C"/>
+  <path d="M126,182 Q150,196 174,182" fill="white" opacity="0.9"/>
+</svg>

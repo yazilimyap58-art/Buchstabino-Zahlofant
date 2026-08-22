@@ -5,7 +5,8 @@ Kindgerechtes Mathe-Lernspiel für Kinder im Vorschulalter. Zählen, Addieren un
 
 ## Features
 
-- **2 Spielmodi** (Auswahl-Screen): Zählen (1-5), Addieren/Subtrahieren (1-10, gemischt)
+- **Maskottchen**: Buchstabino (Buchstaben-Bereich) & Zahlofant (Zahlen-Bereich) begleiten mit Idle-/Winke-/Denk-/Jubel-Posen
+- **2 Bereiche** (Kategoriewahl): „Buchstaben" (Minispiele folgen) und „Zahlen" mit aktuell 2 Spielmodi: Zählen (1-5), Addieren/Subtrahieren (1-10, gemischt)
 - **Zufällige Motive**: Schmetterlinge, Bienen, Äpfel, Birnen, Blumen, Sterne...
 - **Sprachausgabe**: Jede Aufgabe wird vorgelesen
 - **Visuelles Feedback**: ✅ Richtig = Konfetti + Stern
@@ -23,14 +24,15 @@ Kindgerechtes Mathe-Lernspiel für Kinder im Vorschulalter. Zählen, Addieren un
 ## Technische Architektur
 
 ```
-rechen-abenteuer/
+buchstabino-zahlofant/
 ├── index.html        ← Hauptseite
 ├── style.css         ← Design
 ├── app.js            ← Spiel-Logik
 ├── sw.js             ← Offline-Cache
 ├── manifest.json     ← PWA-Konfiguration
 └── assets/
-    └── icons/        ← App-Icons
+    ├── icons/        ← App-Icons
+    └── mascots/      ← Buchstabino- & Zahlofant-Grafiken (SVG/PNG, je 4 Posen)
 ```
 
 ### Web Speech API für Sprachausgabe

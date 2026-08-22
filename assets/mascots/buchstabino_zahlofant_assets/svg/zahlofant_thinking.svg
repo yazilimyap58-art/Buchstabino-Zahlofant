@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 340" width="300" height="340">
+  <ellipse cx="72" cy="150" rx="42" ry="52" fill="#6FB1F0" stroke="#4E93D9" stroke-width="4" transform="rotate(-12 72 150)"/>
+  <ellipse cx="228" cy="150" rx="42" ry="52" fill="#6FB1F0" stroke="#4E93D9" stroke-width="4" transform="rotate(12 228 150)"/>
+
+  <ellipse cx="150" cy="205" rx="82" ry="82" fill="#8EC9FF" stroke="#4E93D9" stroke-width="5"/>
+  <ellipse cx="128" cy="270" rx="18" ry="12" fill="#4E93D9"/>
+  <ellipse cx="172" cy="270" rx="18" ry="12" fill="#4E93D9"/>
+  <circle cx="150" cy="128" r="68" fill="#8EC9FF" stroke="#4E93D9" stroke-width="5"/>
+  <ellipse cx="150" cy="215" rx="40" ry="34" fill="#C9E6FF" opacity="0.6"/>
+<path d="M150,150 Q168,175 156,196 Q150,206 162,210" fill="none" stroke="#4E93D9" stroke-width="26" stroke-linecap="round"/><path d="M150,150 Q168,175 156,196 Q150,206 162,210" fill="none" stroke="#8EC9FF" stroke-width="19" stroke-linecap="round"/>
+  <line x1="100" y1="235" x2="78" y2="262" stroke="#8EC9FF" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="78" cy="262" r="12" fill="#8EC9FF" stroke="#4E93D9" stroke-width="3"/>
+
+  <line x1="198" y1="230" x2="208" y2="200" stroke="#8EC9FF" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="208" cy="200" r="12" fill="#8EC9FF" stroke="#4E93D9" stroke-width="3"/>
+<circle cx="108" cy="138" r="12" fill="#FF8FA3" opacity="0.75"/><circle cx="192" cy="138" r="12" fill="#FF8FA3" opacity="0.75"/><path d="M118,110 Q132,101 146,110" stroke="#3d6e9e" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <ellipse cx="130" cy="118" rx="16" ry="19" fill="white" stroke="#333" stroke-width="3"/>
+  <ellipse cx="174" cy="118" rx="16" ry="19" fill="white" stroke="#333" stroke-width="3"/>
+  <circle cx="133" cy="121" r="7" fill="#2B2B2B"/>
+  <circle cx="177" cy="121" r="7" fill="#2B2B2B"/>
+  <circle cx="136" cy="117" r="2.2" fill="white"/>
+  <circle cx="180" cy="117" r="2.2" fill="white"/>
+<ellipse cx="150" cy="142" rx="9" ry="11" fill="#7A3B00"/>
+  <text x="204" y="92" font-family="'Comic Sans MS','Segoe UI',sans-serif" font-weight="800" font-size="38" fill="#4E93D9">?</text>
+</svg>

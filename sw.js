@@ -1,14 +1,20 @@
 // Service Worker für PWA-Offline-Fähigkeit
 // Cacht die wichtigsten Assets, damit das Spiel auch ohne Internet funktioniert
 
-const CACHE_NAME = 'rechen-abenteuer-v1';
+const CACHE_NAME = 'buchstabino-zahlofant-v2';
+const MASCOT_BASE = '/assets/mascots/buchstabino_zahlofant_assets/svg/';
+const MASCOT_POSES = ['idle', 'waving', 'thinking', 'celebrating'];
+const MASCOT_ASSETS = ['buchstabino', 'zahlofant'].flatMap(
+  character => MASCOT_POSES.map(pose => `${MASCOT_BASE}${character}_${pose}.svg`)
+);
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
   '/manifest.json',
-  '/sw.js'
+  '/sw.js',
+  ...MASCOT_ASSETS
 ];
 
 self.addEventListener('install', (event) => {

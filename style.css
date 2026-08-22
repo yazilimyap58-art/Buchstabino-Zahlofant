@@ -1,5 +1,5 @@
 /* ============================
-   🧮 Rechen-Abenteuer – Style
+   🧮 Buchstabino & Zahlofant – Style
    Kindgerechtes Design mit großen Buttons, hoher Kontrastfähigkeit, Animationen
    ============================ */
 
@@ -113,20 +113,11 @@ body {
   gap: var(--space-xs);
 }
 
-.mode-select__logo {
-  font-size: 3rem;
-  line-height: 1;
-}
-
 .mode-select__title {
-  font-size: 2rem;
+  font-size: 1.625rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-}
-
-.mode-select__tagline {
-  color: var(--color-text-secondary);
-  font-size: 0.9375rem;
+  text-align: center;
 }
 
 .mode-select__subtitle {
@@ -201,6 +192,10 @@ body {
    Header
    ============================ */
 .game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
   text-align: center;
   margin-bottom: var(--space-xl);
   animation: fadeInDown 0.4s var(--transition-fast) both;
@@ -482,6 +477,96 @@ body {
   gap: var(--space-md);
   animation: fadeInUp 0.4s var(--transition-fast) both;
   flex-wrap: wrap;
+}
+
+.btn-back {
+  background: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  align-self: flex-start;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-back:hover {
+    background: var(--color-primary);
+    color: var(--color-background);
+  }
+}
+
+.btn-back:focus-visible {
+  outline: 2px solid var(--color-primary-dark);
+  outline-offset: 2px;
+}
+
+.btn-back:active {
+  transform: scale(0.96);
+}
+
+/* ============================
+   Maskottchen (Buchstabino & Zahlofant)
+   ============================ */
+.mascot-img {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+.mascot-img--lg {
+  width: 128px;
+  height: 128px;
+}
+
+.mascot-img--sm {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+/* Jede Pose hat ihre eigene Loop-Animation. Neue Posen (z.B. "retry")
+   funktionieren automatisch mit sanftem Bob, solange keine eigene Regel
+   ergänzt wird - hier bewusst optional gehalten, nicht Pflicht. */
+.mascot-img[data-pose="idle"] {
+  animation: mascotBob 3.2s ease-in-out infinite;
+}
+
+.mascot-img[data-pose="waving"] {
+  animation: mascotWave 0.6s ease-in-out 2;
+}
+
+.mascot-img[data-pose="thinking"] {
+  animation: mascotTilt 2.4s ease-in-out infinite;
+}
+
+.mascot-img[data-pose="celebrating"] {
+  animation: mascotCelebrate 0.5s ease-in-out infinite;
+}
+
+@keyframes mascotBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes mascotWave {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+@keyframes mascotTilt {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes mascotCelebrate {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.08); }
 }
 
 .btn-menu,
