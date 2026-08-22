@@ -106,8 +106,27 @@ body {
   animation: fadeInUp 0.4s var(--transition-fast) both;
 }
 
+.mode-select__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.mode-select__logo {
+  font-size: 3rem;
+  line-height: 1;
+}
+
 .mode-select__title {
-  font-size: 1.75rem;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.mode-select__tagline {
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
 }
 
 .mode-select__subtitle {

@@ -4,9 +4,12 @@ Guidance for Claude Code (or any AI assistant) working in this repository.
 
 ## Project
 
-Rechen-Abenteuer — a German-language, kid-friendly PWA math game (counting,
-addition, subtraction) for preschool-age children. Zero build step: vanilla
-HTML/CSS/JS, no framework, no `package.json`, no bundler.
+Buchstabino & Zahlofant ("B&Z") — a German-language, kid-friendly PWA math
+game (counting, addition, subtraction) for preschool-age children. Zero
+build step: vanilla HTML/CSS/JS, no framework, no `package.json`, no
+bundler. `localStorage` key and some internal references still say
+`rechenAbenteuer`/"Rechen-Abenteuer" (the game's working title) — harmless,
+not worth a mechanical rename.
 
 ## Running locally
 

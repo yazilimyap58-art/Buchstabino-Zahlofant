@@ -1,11 +1,11 @@
-🧮 Rechen-Abenteuer
-==================
+🧮 Buchstabino & Zahlofant
+==========================
 
 Kindgerechtes Mathe-Lernspiel für Kinder im Vorschulalter. Zählen, Addieren und Subtrahieren in spielerischer Form.
 
 ## Features
 
-- **3 Levels**: Zählen (1-5) → Addieren (1-10) → Subtrahieren (1-10)
+- **2 Spielmodi** (Auswahl-Screen): Zählen (1-5), Addieren/Subtrahieren (1-10, gemischt)
 - **Zufällige Motive**: Schmetterlinge, Bienen, Äpfel, Birnen, Blumen, Sterne...
 - **Sprachausgabe**: Jede Aufgabe wird vorgelesen
 - **Visuelles Feedback**: ✅ Richtig = Konfetti + Stern
