@@ -620,8 +620,6 @@ body {
   animation: fadeIn 0.3s var(--transition-fast) forwards;
 }
 
-.install-banner.hidden { display: none; }
-
 .install-actions {
   display: flex;
   justify-content: space-between;

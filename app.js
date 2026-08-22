@@ -58,8 +58,7 @@ const STATE = {
   totalCorrect: 0,
   currentTask: null,
   isPlaying: true,
-  isPaused: false,
-  lastTimestamp: 0
+  isPaused: false
 };
 
 /* ----------------------------
@@ -146,7 +145,6 @@ const Game = {
     this.loadState();
     this.bindEvents();
     this.showScreen('mode-select');
-    this.loop(0);
   },
 
   loadState() {
@@ -155,6 +153,12 @@ const Game = {
       try {
         const parsed = JSON.parse(saved);
         Object.assign(STATE, parsed);
+        // Nur langfristige Werte übernehmen: isPaused/isPlaying sind
+        // Session-Zustand und dürfen nicht als "true" überleben, sonst
+        // blockieren sie generateTask()/handleOptionClick() stumm nach
+        // einem Reload (die App startet ohnehin immer am Moduswahl-Screen).
+        STATE.isPaused = false;
+        STATE.isPlaying = true;
       } catch (e) {
         console.warn('Could not parse saved state', e);
       }
@@ -541,16 +545,6 @@ const Game = {
     this.saveState();
     this.updateUI();
     this.resumeGame();
-  },
-
-  // Main loop (for potential animations)
-  loop(timestamp) {
-    if (!STATE.lastTimestamp) STATE.lastTimestamp = timestamp;
-    STATE.lastTimestamp = timestamp;
-
-    // Update any time-based effects here
-
-    requestAnimationFrame(this.loop.bind(this));
   }
 };
 
@@ -576,7 +570,9 @@ const Confetti = {
     this.height = window.innerHeight;
     this.canvas.width = this.width * devicePixelRatio;
     this.canvas.height = this.height * devicePixelRatio;
-    this.ctx.scale(devicePixelRatio, devicePixelRatio);
+    // setTransform statt scale: sonst summiert sich die Skalierung bei
+    // jedem weiteren Resize (Fenster verändern, Gerät drehen) auf.
+    this.ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   },
 
   // Startet die Konfetti-Animation. Gibt ein Promise zurück, das erst
