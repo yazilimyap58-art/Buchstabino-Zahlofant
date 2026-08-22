@@ -2,3 +2,7 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Noch nicht ins Spiel integriertes Material, vorerst ignoriert
+assets/buchstabino_zahlofant_assets.zip
+assets/mascots/
