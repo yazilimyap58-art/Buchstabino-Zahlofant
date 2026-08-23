@@ -5,6 +5,7 @@ import { Mascot } from './mascot.js';
 import { Confetti } from './confetti.js';
 import { withTimeout } from './utils.js';
 import { Game } from './game.js';
+import { LETTER_PATHS, LETTER_PATH_BOX } from './letterPaths.js';
 
 /* ----------------------------
    Buchstaben zeichnen (Nachfahren + Freihand)
@@ -12,7 +13,7 @@ import { Game } from './game.js';
 export const LetterDraw = {
   guideCtx: null,
   inkCtx: null,
-  maskCanvas: null, // unsichtbares Offscreen-Canvas: enthält die volle Buchstaben-Innenfläche für die Bewertung
+  maskCanvas: null, // unsichtbares Offscreen-Canvas: enthält das Linienband für die Bewertung
   maskCtx: null,
   width: 0,
   height: 0,
@@ -21,19 +22,20 @@ export const LetterDraw = {
   currentLetter: null,
   currentCase: 'upper',
   phase: 'guided', // 'guided' | 'freehand'
-  inkLineWidth: 16,
 
-  // Nachfahren: harte Schwelle - unter 90% Ausfüllung der Buchstaben-Innenfläche
-  // gilt "Fertig" nicht, es muss weiter/erneut ausgemalt werden.
-  fillPassScore: 0.9,
+  // Nachfahren: harte Schwelle - unter 75% Abdeckung des Linienbands (siehe
+  // maskBandWidth()/drawMask()) gilt "Fertig" nicht. Nicht höher, weil
+  // selbst ein exaktes, zentriertes Nachfahren nie 100% des Bands erreicht
+  // (siehe scoreDrawing()) - 0.75 lässt Puffer für zittrige Kinderhände.
+  guidedPassScore: 0.75,
   // Freihand: ohne sichtbare Vorlage ist eine so hohe Trefferquote unrealistisch,
   // daher niedrigere (weiche) Schwelle - siehe handleNext() für die Begründung,
   // warum hier trotzdem immer weitergegangen wird statt hart zu blockieren.
-  freehandFillPassScore: 0.35,
-  // Anteil der Tinte, der AUSSERHALB der Buchstaben-Innenfläche liegen darf,
-  // bevor der Versuch trotz hoher Coverage abgelehnt wird - verhindert, dass
-  // schlicht die gesamte Fläche vollgemalt wird ("Coverage geschenkt").
-  maxOverflowRatio: 0.55,
+  freehandPassScore: 0.4,
+  // Anteil der Tinte, der AUSSERHALB des Linienbands liegen darf, bevor der
+  // Versuch trotz ausreichender Coverage abgelehnt wird - verhindert, dass
+  // querfeldein gekritzelt wird, solange nur genug vom Band getroffen wird.
+  maxOverflowRatio: 0.45,
 
   init() {
     this.guideCtx = EL.drawGuideCanvas.getContext('2d');
@@ -86,7 +88,7 @@ export const LetterDraw = {
     EL.drawGuideCanvas.hidden = false;
     EL.drawStars.hidden = true;
     EL.btnDrawNext.textContent = 'Fertig ✓';
-    EL.drawQuestion.textContent = `Mal den Buchstaben „${this.currentLetter[this.currentCase]}“ komplett aus`;
+    EL.drawQuestion.textContent = `Fahre den Buchstaben „${this.currentLetter[this.currentCase]}“ nach`;
     this.clearInk();
     this.drawMask();
     this.drawGuide();
@@ -102,55 +104,134 @@ export const LetterDraw = {
     this.clearInk();
   },
 
-  // Gemeinsame Font-/Positionsangaben für Anzeige-Guide und (unsichtbare)
-  // Bewertungs-Maske - müssen exakt übereinstimmen, sonst sieht das Kind
-  // eine andere Fläche als die, die tatsächlich geprüft wird.
-  glyphSpec() {
-    return {
-      font: `bold ${Math.floor(this.height * 0.72)}px system-ui, sans-serif`,
-      x: this.width / 2,
-      y: this.height / 2 + this.height * 0.02
-    };
+  // Skaliert/zentriert die feste Koordinatenbox aus letterPaths.js
+  // (LETTER_PATH_BOX) gleichmäßig in die verfügbare Zeichenfläche - dieselbe
+  // Transformation wird für Guide, Bewertungs-Maske und (indirekt) für die
+  // Pfeilspitzen benutzt, damit immer alles exakt übereinander liegt.
+  letterTransform() {
+    const marginFactor = 0.78;
+    const scale = Math.min(
+      (this.width * marginFactor) / LETTER_PATH_BOX.width,
+      (this.height * marginFactor) / LETTER_PATH_BOX.height
+    );
+    const offsetX = (this.width - LETTER_PATH_BOX.width * scale) / 2;
+    const offsetY = (this.height - LETTER_PATH_BOX.height * scale) / 2;
+    return { scale, offsetX, offsetY };
   },
 
-  // Anzeige: großer Buchstabe aus Systemschrift statt handgepflegter
-  // Pfaddaten pro Buchstabe (kein Content-Aufwand für Strichrichtung/Pfeile).
-  // Leichte Füllung + Umrandung wie in einem Ausmalbild - macht sichtbar,
-  // dass die ganze Fläche ausgemalt werden soll, nicht nur eine Linie
-  // nachgefahren wird (siehe drawMask()/scoreDrawing() für die Bewertung,
-  // die auf einer separaten, unsichtbaren Voll-Füllung basiert).
-  drawGuide() {
-    const ctx = this.guideCtx;
-    const { font, x, y } = this.glyphSpec();
-    ctx.clearRect(0, 0, this.width, this.height);
+  toCanvas(x, y, t) {
+    return { x: t.offsetX + x * t.scale, y: t.offsetY + y * t.scale };
+  },
+
+  // Breite des Linienbands, das nachgefahren werden soll, und des
+  // Tinten-Pinsels dazu - der Pinsel ist bewusst der Großteil der
+  // Bandbreite (nicht nur ein dünner Strich), sonst kann selbst ein exakt
+  // zentrierter Strich das Band nie ausreichend abdecken, egal wie
+  // sorgfältig nachgefahren wird (siehe Gotchas in CLAUDE.md).
+  maskBandWidth(t) {
+    return Math.max(22, 11 * t.scale);
+  },
+  inkWidth(t) {
+    return this.maskBandWidth(t) * 0.8;
+  },
+
+  // Baut aus den Pfaddaten des aktuellen Buchstabens (letterPaths.js) ein
+  // Path2D in Bildschirmkoordinaten, plus für jeden Strich Start- und
+  // Endpunkt der letzten Teilstrecke (für die Pfeilspitze, siehe
+  // drawArrowhead()). Wird sowohl für den sichtbaren Guide als auch für
+  // die unsichtbare Bewertungs-Maske benutzt, damit beide exakt übereinstimmen.
+  buildLetterPath() {
+    const letterKey = this.currentLetter[this.currentCase];
+    const data = LETTER_PATHS[letterKey];
+    const t = this.letterTransform();
+    const path = new Path2D();
+    const arrows = [];
+
+    for (const stroke of data.strokes) {
+      let from = null;
+      let to = null;
+      stroke.forEach(cmd => {
+        const [type, ...args] = cmd;
+        if (type === 'M') {
+          to = this.toCanvas(args[0], args[1], t);
+          path.moveTo(to.x, to.y);
+          from = to;
+        } else if (type === 'L') {
+          from = to;
+          to = this.toCanvas(args[0], args[1], t);
+          path.lineTo(to.x, to.y);
+        } else if (type === 'Q') {
+          const control = this.toCanvas(args[0], args[1], t);
+          from = control;
+          to = this.toCanvas(args[2], args[3], t);
+          path.quadraticCurveTo(control.x, control.y, to.x, to.y);
+        }
+      });
+      // Nur einen Pfeil zeichnen, wenn der Strich lang genug ist - ein
+      // Punkt-Strich (i-Punkt, j-Punkt) hätte sonst eine bedeutungslose
+      // Zufallsrichtung.
+      if (from && to && Math.hypot(to.x - from.x, to.y - from.y) > 4) {
+        arrows.push({ from, to });
+      }
+    }
+
+    return { path, arrows };
+  },
+
+  drawArrowhead(ctx, from, to) {
+    const t = this.letterTransform();
+    const size = Math.max(8, t.scale * 4.5);
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
     ctx.save();
-    ctx.font = font;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(100, 116, 139, 0.16)';
-    ctx.fillText(this.currentLetter[this.currentCase], x, y);
-    ctx.lineWidth = 3;
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(100, 116, 139, 0.6)';
-    ctx.strokeText(this.currentLetter[this.currentCase], x, y);
+    ctx.translate(to.x, to.y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-size, size * 0.55);
+    ctx.lineTo(-size * 0.6, 0);
+    ctx.lineTo(-size, -size * 0.55);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(74, 144, 226, 0.9)';
+    ctx.fill();
     ctx.restore();
   },
 
-  // Bewertungs-Maske: dieselbe Buchstabenfläche voll (nicht nur als Umriss)
-  // gefüllt, aber auf einem unsichtbaren Offscreen-Canvas - das ist die
-  // Grundlage für "wie viel % der Buchstabenfläche wurden ausgemalt?" in
+  // Anzeige: strichlierte Linie entlang des Pfads, den das Kind nachfahren
+  // soll, plus eine Pfeilspitze am Ende jedes Strichs, die die
+  // Schreibrichtung zeigt. Kein Systemschrift-Umriss mehr (siehe Gotchas in
+  // CLAUDE.md) - die Pfaddaten aus letterPaths.js sind eine vereinfachte
+  // "Handschrift-Mittellinie" durch den Buchstaben.
+  drawGuide() {
+    const ctx = this.guideCtx;
+    const { path, arrows } = this.buildLetterPath();
+    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.setLineDash([14, 10]);
+    ctx.lineWidth = Math.max(4, this.letterTransform().scale * 2.2);
+    ctx.strokeStyle = 'rgba(100, 116, 139, 0.75)';
+    ctx.stroke(path);
+    ctx.setLineDash([]);
+    arrows.forEach(({ from, to }) => this.drawArrowhead(ctx, from, to));
+    ctx.restore();
+  },
+
+  // Bewertungs-Maske: derselbe Pfad wie drawGuide(), aber als breiteres
+  // Band (maskBandWidth()) auf einem unsichtbaren Offscreen-Canvas - das
+  // ist die Grundlage für "wie viel % der Linie wurde nachgefahren?" in
   // scoreDrawing(). Bleibt für beide Phasen (Nachfahren + Freihand)
   // desselben Buchstabens erhalten, siehe beginFreehandPhase().
   drawMask() {
     const ctx = this.maskCtx;
-    const { font, x, y } = this.glyphSpec();
+    const { path } = this.buildLetterPath();
     ctx.clearRect(0, 0, this.width, this.height);
     ctx.save();
-    ctx.font = font;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#000';
-    ctx.fillText(this.currentLetter[this.currentCase], x, y);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = this.maskBandWidth(this.letterTransform());
+    ctx.strokeStyle = '#000';
+    ctx.stroke(path);
     ctx.restore();
   },
 
@@ -184,7 +265,7 @@ export const LetterDraw = {
     const point = this.getPoint(event);
     const ctx = this.inkCtx;
     ctx.strokeStyle = '#4ade80';
-    ctx.lineWidth = this.inkLineWidth;
+    ctx.lineWidth = this.inkWidth(this.letterTransform());
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -202,7 +283,7 @@ export const LetterDraw = {
   handleNext() {
     if (this.phase === 'guided') {
       const { coverage, overflowRatio } = this.scoreDrawing();
-      const passed = coverage >= this.fillPassScore && overflowRatio <= this.maxOverflowRatio;
+      const passed = coverage >= this.guidedPassScore && overflowRatio <= this.maxOverflowRatio;
       this.showStars(coverage);
 
       if (passed) {
@@ -216,30 +297,31 @@ export const LetterDraw = {
         const audioDone = withTimeout(TTS.speak('Super gemacht!', 'de-DE', {rate: 0.9}), 3000);
         Promise.all([confettiDone, audioDone]).then(() => this.beginFreehandPhase());
       } else {
-        // Hartes "erneut versuchen" statt Weiterschalten: unter 90%
-        // ausgemalter Fläche (oder zu viel Tinte ausserhalb des Buchstabens)
+        // Hartes "erneut versuchen" statt Weiterschalten: unter 75%
+        // nachgefahrener Linie (oder zu viel Tinte ausserhalb des Bands)
         // gilt "Fertig" nicht. Die Zeichnung bleibt erhalten, damit einfach
-        // weiter ausgemalt werden kann, statt von vorne anfangen zu müssen.
+        // weiter nachgefahren werden kann, statt von vorne anfangen zu müssen.
         Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
         const message = overflowRatio > this.maxOverflowRatio
-          ? 'Achte darauf, innerhalb des Buchstabens zu bleiben, und mal weiter aus!'
-          : 'Noch nicht ganz - mal den Buchstaben weiter aus!';
+          ? 'Achte darauf, auf der Linie zu bleiben, und fahr sie weiter nach!'
+          : 'Noch nicht ganz - fahr die Linie weiter nach!';
         TTS.speak(message, 'de-DE', {rate: 0.9}).then(
           () => Mascot.set(EL.mascotDraw, 'buchstabino', 'idle'),
           () => Mascot.set(EL.mascotDraw, 'buchstabino', 'idle')
         );
       }
     } else {
-      // Freihand hat keine sichtbare Vorlage, die (unsichtbare) Maske vom
-      // Nachfahren bleibt aber bestehen (siehe drawMask()/beginFreehandPhase())
-      // und wird hier für eine deutlich grosszügigere, aber echte Prüfung
-      // wiederverwendet - ohne das würde diese Phase JEDE Eingabe (auch eine
-      // leere Fläche) unterschiedslos als "Toll gemalt!" feiern. Anders als
-      // beim Nachfahren wird hier trotzdem immer weitergegangen: ohne
-      // sichtbare Linie ist ein hartes Blockieren nicht fair, das Kind soll
-      // nur ehrliches statt beliebiges Feedback bekommen.
+      // Freihand hat keine sichtbare Vorlage, die (unsichtbare) Band-Maske
+      // vom Nachfahren bleibt aber bestehen (siehe drawMask()/
+      // beginFreehandPhase()) und wird hier mit einer niedrigeren Schwelle
+      // wiederverwendet - ohne das würde diese Phase JEDE Eingabe (auch
+      // eine leere Fläche oder ein beliebiges Gekritzel) unterschiedslos
+      // feiern. Anders als beim Nachfahren wird hier trotzdem immer
+      // weitergegangen: ohne sichtbare Linie ist ein hartes Blockieren
+      // nicht fair, das Kind soll nur ehrliches statt beliebiges Feedback
+      // bekommen.
       const { coverage, overflowRatio } = this.scoreDrawing();
-      const passed = coverage >= this.freehandFillPassScore && overflowRatio <= this.maxOverflowRatio + 0.1;
+      const passed = coverage >= this.freehandPassScore && overflowRatio <= this.maxOverflowRatio + 0.1;
       const audioDone = withTimeout(
         TTS.speak(passed ? 'Toll gemalt!' : 'Guter Versuch! Versuch dich beim nächsten Mal genau an die Form zu erinnern.', 'de-DE', {rate: 0.9}),
         3000
@@ -260,17 +342,18 @@ export const LetterDraw = {
   },
 
   showStars(coverage) {
-    const starCount = coverage >= this.fillPassScore ? 3 : coverage >= 0.5 ? 2 : 1; // nie 0 Sterne: sanftes Feedback statt harter Fehlermeldung
+    const starCount = coverage >= this.guidedPassScore ? 3 : coverage >= 0.5 ? 2 : 1; // nie 0 Sterne: sanftes Feedback statt harter Fehlermeldung
     EL.drawStars.textContent = '⭐'.repeat(starCount) + '☆'.repeat(3 - starCount);
     EL.drawStars.hidden = false;
   },
 
   // Trefferanalyse per Grid-Sampling statt exaktem Pixelvergleich: prüft,
-  // wie viel Prozent der Buchstaben-INNENFLÄCHE (drawMask(), voll gefüllt,
-  // nicht nur ein Umriss) mit Tinte bedeckt wurde (Coverage), und welcher
-  // Anteil der Tinte ausserhalb dieser Fläche liegt (overflowRatio) - eine
-  // einzelne Linie oder ein Kritzel über den ganzen Canvas fällt so
-  // zuverlässig durch, ohne dass pixelgenaues Zeichnen nötig wäre.
+  // wie viel Prozent des Linienbands (drawMask(), siehe maskBandWidth())
+  // mit Tinte bedeckt wurde (Coverage), und welcher Anteil der Tinte
+  // ausserhalb dieses Bands liegt (overflowRatio) - ein Kritzel quer über
+  // den ganzen Canvas trifft nur einen Bruchteil des schmalen Bands und
+  // hat gleichzeitig hohen Overflow, fällt also zuverlässig durch, während
+  // tatsächliches Nachfahren der Linie mit zittriger Kinderhand besteht.
   scoreDrawing() {
     const gridStep = 6;
     const toleranceCells = 1; // ±1 Zelle (~6px) Toleranz für zittrige Kinderhände, nicht mehr
