@@ -3,6 +3,8 @@
 
 Kindgerechtes Mathe-Lernspiel für Kinder im Vorschulalter. Zählen, Addieren und Subtrahieren in spielerischer Form.
 
+> **Projektstatus**: Dieses Projekt befindet sich aktuell in aktiver Entwicklung und ist noch nicht öffentlich live. Die Sprachausgabe wird über die ElevenLabs-API im **Free Plan** generiert (siehe Abschnitt "Sprachausgabe (ElevenLabs TTS)" weiter unten) — das ist für lokale Entwicklung/Tests in Ordnung, aber der Free Plan erlaubt laut ElevenLabs-AGB keine kommerzielle bzw. öffentliche Nutzung der generierten Audiodateien. Vor einem echten Deployment muss auf einen bezahlten Plan gewechselt und die Audiodateien neu generiert werden.
+
 ## Features
 
 - **Maskottchen**: Buchstabino (Buchstaben-Bereich) & Zahlofant (Zahlen-Bereich) begleiten mit Idle-/Winke-/Denk-/Jubel-Posen
@@ -35,9 +37,34 @@ buchstabino-zahlofant/
     └── mascots/      ← Buchstabino- & Zahlofant-Grafiken (SVG/PNG, je 4 Posen)
 ```
 
-### Web Speech API für Sprachausgabe
+### Sprachausgabe (ElevenLabs TTS)
 
-Standardmäßig nutzt das Spiel die Web Speech API, um Aufgaben und Feedback vorzulesen. Alternativ können MP3-Dateien im Ordner `assets/audio/` abgelegt werden.
+Die Sprachausgabe läuft über vorgenerierte Audioclips von [ElevenLabs](https://elevenlabs.io), nicht live über die Web Speech API. `js/tts.js` reiht zur Laufzeit mehrere kurze Clips aus `audio/` zu Sätzen zusammen (siehe `scripts/tts-texts.mjs` für das Text-Inventar). Nur falls ein Clip nicht lädt, greift als Fallback die browsereigene Web Speech API.
+
+Zum (Neu-)Erzeugen der Audiodateien:
+
+1. `.env.example` nach `.env` kopieren und mit ElevenLabs-API-Key und Voice-IDs ausfüllen (siehe Kommentare in der Datei).
+2. `node scripts/generate-tts.mjs` ausführen (erzeugt fehlende Dateien; `--force` erzwingt Neugenerierung, einzelne Keys als Argumente möglich).
+
+**Lizenz-Hinweis**: Der ElevenLabs Free-Plan erlaubt laut deren AGB keine kommerzielle bzw. öffentliche Nutzung der generierten Audiodateien. Für ein öffentlich erreichbares Deployment (z.B. Vercel) muss vorher auf einen bezahlten ElevenLabs-Plan gewechselt und die Audiodateien neu generiert werden — die aktuellen Bedingungen sind direkt bei ElevenLabs zu prüfen.
+
+#### Neugenerierung nach Plan-Wechsel (Free → bezahlt)
+
+Die "einfachen" Satz-Keys (`glue_*`, `feedback_*`, `fixed_*`, `greet_*` — 21 Stück) lassen sich problemlos über `node scripts/generate-tts.mjs --force` neu erzeugen (Standardmodell ist jetzt `eleven_v3`, Speed `0.85` — beides per `.env` überschreibbar, siehe `.env.example`). Diese Keys sind volle Sätze mit ausreichend Kontext, damit die Aussprache stimmt.
+
+**Ausnahme, unbedingt beachten**: Alle **einzeln stehenden Wörter/Buchstaben/Zahlen** (73 Keys: `letter_a`…`letter_z`, `word_a`…`word_z`, `motif_*_sg`/`_pl`, `num_0`…`num_20`) wurden *nicht* über `generate-tts.mjs`, sondern manuell mit dem Modell `eleven_v3` + dem `/with-timestamps`-Endpoint erzeugt. Grund: isolierte Einzelwörter/-buchstaben/-zahlen ohne Satzkontext werden von der TTS sonst zuverlässig englisch ausgesprochen (z.B. "I" wie "eye", "Tiger" wie im Englischen) — das passiert unabhängig vom Modell oder von Schreibweisen-Tricks (z.B. "Ih"/"Ieh" für I), einzige zuverlässige Lösung war echter Satzkontext + gezieltes Herausschneiden. Ein einfacher `--force`-Lauf über `generate-tts.mjs` würde diese Keys ohne Kontext neu erzeugen und die Aussprache-Fixes zunichtemachen.
+
+Verfahren (reproduzierbar für alle 73 Keys):
+
+1. Pro Stimme (Buchstabino/Zahlofant) einen deutschen Einleitungssatz + die Zielwörter/-buchstaben/-zahlen, getrennt durch Punkte, an `POST /v1/text-to-speech/{voice_id}/with-timestamps` schicken, `model_id: 'eleven_v3'`. Beispiele, die funktioniert haben:
+   - Buchstaben: `"Ich sage jetzt die Buchstaben auf Deutsch: A B C D E F G H I J K L M N O P Q R S T U V W X Y Z"`
+   - Zahlen: `"Ich sage jetzt die Zahlen auf Deutsch: null eins zwei ... zwanzig"`
+   - Wörter (batchweise, z.B.): `"Ich sage jetzt einige deutsche Wörter: Apfel. Ball. Drache. ..."`
+   - Sonderfall `word_o` (Orange): brauchte zusätzlich einen unbestimmten Artikel, um die Frucht- statt die Farb-Lesart zu erzwingen: `"...zum Beispiel Obst: eine Orange."`, geschnitten wird dabei nur der Wortteil "Orange" (nicht "eine").
+2. Aus der Response `alignment.character_start_times_seconds`/`character_end_times_seconds` die Start-/End-Zeit des Zielworts anhand seiner Zeichen-Position im gesendeten Text ablesen.
+3. Mit `ffmpeg -ss <start> -t <dauer> -acodec copy` das Segment aus dem Antwort-Audio herausschneiden (kleine Vor-/Nachlauf-Polsterung, ca. 0.08s/0.15s, hat sich bewährt).
+
+`ffmpeg` ist dafür lokal per `winget install --id Gyan.FFmpeg -e` installiert (Chocolatey scheiterte hier an fehlenden Admin-Rechten).
 
 ## Lokale Entwicklung
 

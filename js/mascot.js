@@ -2,6 +2,13 @@
    Maskottchen (Buchstabino & Zahlofant)
    ---------------------------- */
 const MASCOT_BASE = 'assets/mascots/buchstabino_zahlofant_assets/svg/';
+// Für set()'s alt-Text-Update: manche <img>-Elemente (z.B. #mascot-game,
+// #mascot-draw) zeigen je nach Modus/Charakter mal Buchstabino, mal
+// Zahlofant - ohne diese Aktualisierung bliebe das im HTML fest verdrahtete
+// alt-Attribut (z.B. "Zahlofant") stehen, obwohl das Bild längst zu
+// Buchstabino gewechselt hat (Screenreader würden dann den falschen
+// Charakter ansagen).
+const DISPLAY_NAME = { buchstabino: 'Buchstabino', zahlofant: 'Zahlofant' };
 
 export const Mascot = {
   // Zählt pro Maskottchen-<img> hoch, wie oft set() aufgerufen wurde - Basis
@@ -28,6 +35,7 @@ export const Mascot = {
     const gen = (this._gen.get(imgEl) || 0) + 1;
     this._gen.set(imgEl, gen);
     imgEl.src = `${MASCOT_BASE}${character}_${pose}.svg`;
+    imgEl.alt = DISPLAY_NAME[character] || imgEl.alt;
     imgEl.dataset.pose = pose;
     return gen;
   },

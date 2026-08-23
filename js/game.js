@@ -23,31 +23,26 @@ export const Game = {
   },
 
   // Begrüßung auf der Startseite: beide Maskottchen winken SOFORT (rein
-  // visuell, keine Einschränkung), sprechen ihren Satz aber erst beim
-  // ERSTEN Klick/Tap irgendwo auf der Seite. Browser blockieren
-  // speechSynthesis.speak()-Aufrufe ohne vorherige Nutzer-Geste mit einem
-  // "not-allowed"-Fehler (bestätigt per Test) - ein Aufruf direkt bei
-  // init() scheitert also lautlos (die .then()-Fehlerbehandlung fängt
-  // das ab, ohne dass es auffällt: das Maskottchen winkt einfach stumm).
-  // Läuft nur einmal beim App-Start (once:true), nicht bei jeder
-  // Rückkehr zur Kategoriewahl über "Zurück".
+  // visuell, keine Einschränkung durch Browser-Autoplay-Regeln). Sie
+  // SPRECHEN hier bewusst nicht - das passiert erst pro Kategorie beim
+  // tatsächlichen Einstieg (siehe selectCategory()), ausgelöst durch genau
+  // den Klick, der die Kategorie öffnet. Ein früherer Versuch, beide
+  // Ansagen an den allerersten Klick irgendwo auf der Seite zu hängen,
+  // spielte immer BEIDE Stimmen ab, egal welche Kategorie gewählt wurde -
+  // fachlich falsch (nur die gewählte Figur soll sich vorstellen) und ergab
+  // zusätzlich hörbares Überlappen.
   greetCategoryScreen() {
     Mascot.set(EL.mascotCategoryLetters, 'buchstabino', 'waving');
     Mascot.set(EL.mascotCategoryNumbers, 'zahlofant', 'waving');
+  },
 
-    const speakGreetings = () => {
-      const speakOne = (imgEl, character, text) => {
-        const gen = Mascot.set(imgEl, character, 'waving');
-        const backToIdle = () => Mascot.setIfCurrent(imgEl, character, 'idle', gen);
-        TTS.speak(text, 'de-DE', {rate: 0.9}).then(backToIdle, backToIdle);
-      };
-      // speechSynthesis spielt beide Sätze automatisch nacheinander ab
-      // (eine gemeinsame Warteschlange pro Tab), deshalb hier keine
-      // explizite Sequenzierung nötig.
-      speakOne(EL.mascotCategoryLetters, 'buchstabino', 'Hallo, ich bin Buchstabino! Lass uns gemeinsam die Buchstaben lernen.');
-      speakOne(EL.mascotCategoryNumbers, 'zahlofant', 'Hallo, ich bin Zahlofant! Zahlen sind mein Spezialgebiet.');
-    };
-    document.addEventListener('pointerdown', speakGreetings, { once: true });
+  // Winkt UND spricht die Begrüßung der übergebenen Figur, revertiert erst
+  // zu idle wenn die Ansage fertig ist (nicht nach fixem Timeout) - siehe
+  // selectCategory()/firstVisit.
+  greetWithVoice(imgEl, character, key) {
+    const gen = Mascot.set(imgEl, character, 'waving');
+    const backToIdle = () => Mascot.setIfCurrent(imgEl, character, 'idle', gen);
+    TTS.speak([key]).then(backToIdle, backToIdle);
   },
 
   loadState() {
@@ -88,14 +83,14 @@ export const Game = {
     if (categoryId === 'numbers') {
       this.showScreen('mode-select');
       if (firstVisit) {
-        Mascot.greet(EL.mascotModeSelect, 'zahlofant');
+        this.greetWithVoice(EL.mascotModeSelect, 'zahlofant', 'greet_zahlofant');
       } else {
         Mascot.set(EL.mascotModeSelect, 'zahlofant', 'idle');
       }
     } else if (categoryId === 'letters') {
       this.showScreen('letters-mode-select');
       if (firstVisit) {
-        Mascot.greet(EL.mascotLettersModeSelect, 'buchstabino');
+        this.greetWithVoice(EL.mascotLettersModeSelect, 'buchstabino', 'greet_buchstabino');
       } else {
         Mascot.set(EL.mascotLettersModeSelect, 'buchstabino', 'idle');
       }
@@ -359,11 +354,6 @@ export const Game = {
     });
   },
 
-  // Wählt Singular/Plural-Form eines Motivs passend zur Anzahl
-  nameForCount(motif, count) {
-    return count === 1 ? motif.name : motif.plural;
-  },
-
   // Zahlofant rechnet/zählt, Buchstabino ist für Buchstaben-Modi zuständig
   mascotCharacter() {
     return (STATE.mode === 'lettersHear' || STATE.mode === 'lettersFind' || STATE.mode === 'lettersDraw')
@@ -371,8 +361,8 @@ export const Game = {
   },
 
   speakQuestion() {
-    if (!STATE.isPlaying) return;
-    const { displayPrompt, mode, groups, operation } = STATE.currentTask;
+    if (!STATE.isPlaying) return Promise.resolve();
+    const { mode, groups, operation } = STATE.currentTask;
     const character = this.mascotCharacter();
 
     // Während die Aufgabe vorgelesen wird, "denkt" das Maskottchen nach;
@@ -385,32 +375,35 @@ export const Game = {
 
     if (mode === 'count') {
       // Nur die kurze Frage vorlesen, keine Objekt-Wiederholung
-      TTS.speak(displayPrompt, 'de-DE', {rate: 0.9}).then(resetMascotIdle, resetMascotIdle);
-      return;
+      return TTS.speak(['fixed_count_question']).then(resetMascotIdle, resetMascotIdle);
     }
 
     if (mode === 'lettersHear') {
       // Buchstabe + Beispielwort ansagen, z.B. "B wie Ball"
       const target = groups[0].motif;
       const spokenLetter = STATE.currentTask.answer;
-      TTS.speak(`${spokenLetter} wie ${target.word}`, 'de-DE', {rate: 0.8}).then(resetMascotIdle, resetMascotIdle);
-      return;
+      return TTS.speak([TTS.letterKey(spokenLetter), 'glue_wie', TTS.wordKey(target.lower)]).then(resetMascotIdle, resetMascotIdle);
     }
 
     if (mode === 'lettersFind') {
-      TTS.speak(`Wo ist der Buchstabe ${STATE.currentTask.answer}?`, 'de-DE', {rate: 0.85}).then(resetMascotIdle, resetMascotIdle);
-      return;
+      return TTS.speak(['glue_find_lead', TTS.letterKey(STATE.currentTask.answer)]).then(resetMascotIdle, resetMascotIdle);
     }
 
     // Addieren/Subtrahieren: Zahlen und Objektnamen ansagen, nicht jedes Objekt einzeln aufzählen
     const [groupA, groupB] = groups;
-    let spoken;
+    let sequence;
     if (operation === 'add') {
-      spoken = `${groupA.count} ${this.nameForCount(groupA.motif, groupA.count)} plus ${groupB.count} ${this.nameForCount(groupB.motif, groupB.count)}. Wie viele sind das zusammen?`;
+      sequence = [
+        TTS.numberKey(groupA.count), TTS.motifKey(groupA.motif, groupA.count), 'glue_plus',
+        TTS.numberKey(groupB.count), TTS.motifKey(groupB.motif, groupB.count), 'glue_add_tail'
+      ];
     } else {
-      spoken = `Es gibt ${groupA.count} ${this.nameForCount(groupA.motif, groupA.count)}. Wie viele bleiben übrig, wenn du ${groupB.count} ${this.nameForCount(groupB.motif, groupB.count)} wegnimmst?`;
+      sequence = [
+        'glue_sub_lead', TTS.numberKey(groupA.count), TTS.motifKey(groupA.motif, groupA.count),
+        'glue_sub_mid', TTS.numberKey(groupB.count), TTS.motifKey(groupB.motif, groupB.count), 'glue_sub_tail'
+      ];
     }
-    TTS.speak(spoken, 'de-DE', {rate: 0.85}).then(resetMascotIdle, resetMascotIdle);
+    return TTS.speak(sequence).then(resetMascotIdle, resetMascotIdle);
   },
 
   handleOptionClick(event) {
@@ -558,7 +551,7 @@ export const Game = {
     targetEl.classList.add(hintClass);
     setTimeout(() => targetEl.classList.remove(hintClass), 2200);
 
-    TTS.speak('Schau mal genau hin!', 'de-DE', {rate: 0.9}).catch(() => {});
+    return TTS.speak([`fixed_help_hint_${this.mascotCharacter()}`]).catch(() => {});
   },
 
   showFeedback(message, type) {
@@ -629,14 +622,22 @@ export const Game = {
       this.showScreen('letters-mode-select');
     });
 
-    // Repeat button
+    // Repeat button - sperrt sich selbst während der eigenen Ansage, sonst
+    // würde ein Doppel-Tap dieselbe Sequenz zweimal überlappend abspielen
+    // (siehe js/tts.js: jede Wiedergabe bekommt zwar ein frisches Audio-
+    // Element, aber zwei gleichzeitige Ansagen wären trotzdem ein hörbares
+    // Durcheinander statt einer sauberen Wiederholung).
     EL.btnRepeat.addEventListener('click', () => {
-      this.speakQuestion();
+      if (EL.btnRepeat.disabled) return;
+      EL.btnRepeat.disabled = true;
+      Promise.resolve(this.speakQuestion()).finally(() => { EL.btnRepeat.disabled = false; });
     });
 
-    // Help button
+    // Help button - gleiche Selbstsperre wie beim Repeat-Button, siehe oben.
     EL.btnHelp.addEventListener('click', () => {
-      this.showHelp();
+      if (EL.btnHelp.disabled) return;
+      EL.btnHelp.disabled = true;
+      Promise.resolve(this.showHelp()).finally(() => { EL.btnHelp.disabled = false; });
     });
 
     // Pause button
@@ -652,12 +653,15 @@ export const Game = {
       this.restartGame();
     });
 
-    // Visibility change (pause when tab hidden)
+    // Pausiert automatisch, wenn der Tab in den Hintergrund gerät (z.B.
+    // App-Wechsel). Bewusst KEIN Auto-Resume beim Zurückkommen: das
+    // Pause-Menü bleibt offen, bis das Kind/die Aufsichtsperson explizit
+    // "Weiterspielen" tippt - ein Spiel, das beim Zurückwechseln in den Tab
+    // sofort und unangekündigt weiterläuft, wäre hier eher überraschend als
+    // hilfreich.
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.pauseGame();
-      } else {
-        // optionally resume
       }
     });
   },
@@ -682,7 +686,9 @@ export const Game = {
     STATE.isPaused = false;
     EL.pauseModal.close();
     EL.btnPause.textContent = '⏸️ Pause';
-    // Optionally generate new task after resume
+    // Bewusst eine neue Aufgabe statt die pausierte fortzusetzen: nach einer
+    // Unterbrechung (evtl. lange her) lieber frisch starten, als eine
+    // Aufgabe zu zeigen, an die sich das Kind vielleicht nicht mehr erinnert.
     this.generateTask();
   },
 

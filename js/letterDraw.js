@@ -50,7 +50,14 @@ export const LetterDraw = {
     EL.drawInkCanvas.addEventListener('pointercancel', this.handlePointerUp.bind(this));
 
     EL.btnDrawClear.addEventListener('click', () => this.clearInk());
-    EL.btnDrawRepeat.addEventListener('click', () => this.speakLetter());
+    // Selbstsperre während der eigenen Ansage - siehe game.js bindEvents()
+    // btnRepeat für dieselbe Begründung (Doppel-Tap würde sonst dieselbe
+    // Ansage überlappend zweimal abspielen).
+    EL.btnDrawRepeat.addEventListener('click', () => {
+      if (EL.btnDrawRepeat.disabled) return;
+      EL.btnDrawRepeat.disabled = true;
+      this.speakLetter().finally(() => { EL.btnDrawRepeat.disabled = false; });
+    });
     EL.btnDrawHelp.addEventListener('click', () => this.showHelp());
     EL.btnDrawNext.addEventListener('click', () => this.handleNext());
   },
@@ -365,7 +372,7 @@ export const LetterDraw = {
     // nicht überschreiben (siehe Mascot.setIfCurrent()).
     const thinkingGen = Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
     const resetIdle = () => Mascot.setIfCurrent(EL.mascotDraw, 'buchstabino', 'idle', thinkingGen);
-    TTS.speak(`${this.currentLetter[this.currentCase]} wie ${this.currentLetter.word}`, 'de-DE', {rate: 0.8})
+    return TTS.speak([TTS.letterKey(this.currentLetter.lower), 'glue_wie', TTS.wordKey(this.currentLetter.lower)])
       .then(resetIdle, resetIdle);
   },
 
@@ -418,7 +425,7 @@ export const LetterDraw = {
         // Große Center-Stage-Feier wie bei den anderen Modi (siehe
         // Game.handleCorrect()): Maskottchen kommt auf die Zeichenfläche
         // herunter, Konfetti startet erst beim Ankommen (onArrive).
-        const audioDone = withTimeout(TTS.speak('Super gemacht!', 'de-DE', {rate: 0.9}), 3000);
+        const audioDone = withTimeout(TTS.speak(['fixed_draw_success']), 3000);
         const confettiDone = new Promise(resolve => {
           Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
             pose: 'celebrating',
@@ -438,11 +445,11 @@ export const LetterDraw = {
         // gilt "Fertig" nicht. Die Zeichnung bleibt erhalten, damit einfach
         // weiter nachgefahren werden kann, statt von vorne anfangen zu müssen.
         const thinkingGen = Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
-        const message = overflowRatio > this.maxOverflowRatio
-          ? 'Achte darauf, auf der Linie zu bleiben, und fahr sie weiter nach!'
-          : 'Noch nicht ganz - fahr die Linie weiter nach!';
+        const messageKey = overflowRatio > this.maxOverflowRatio
+          ? 'fixed_draw_retry_overflow'
+          : 'fixed_draw_retry_coverage';
         const backToIdle = () => Mascot.setIfCurrent(EL.mascotDraw, 'buchstabino', 'idle', thinkingGen);
-        TTS.speak(message, 'de-DE', {rate: 0.9}).then(backToIdle, backToIdle);
+        TTS.speak([messageKey]).then(backToIdle, backToIdle);
       }
     } else {
       // Freihand hat keine sichtbare Vorlage, die (unsichtbare) Band-Maske
@@ -457,11 +464,18 @@ export const LetterDraw = {
       const { coverage, overflowRatio } = this.scoreDrawing();
       const passed = coverage >= this.freehandPassScore && overflowRatio <= this.maxOverflowRatio + 0.1;
       const audioDone = withTimeout(
-        TTS.speak(passed ? 'Toll gemalt!' : 'Guter Versuch! Versuch dich beim nächsten Mal genau an die Form zu erinnern.', 'de-DE', {rate: 0.9}),
+        TTS.speak([passed ? 'fixed_draw_freehand_pass' : 'fixed_draw_freehand_fail']),
         3000
       );
 
       if (passed) {
+        // Wie beim Nachfahren (siehe oben): Fortschritt nur bei einer
+        // tatsächlich validierten Leistung, hier ebenso gültig für die
+        // Freihand-Phase - vorher fehlte das hier, sodass ein bestandener
+        // Freihand-Durchgang nicht zu Streak/totalCorrect zählte.
+        STATE.streak++;
+        STATE.totalCorrect++;
+        Game.saveState();
         const confettiDone = new Promise(resolve => {
           Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
             pose: 'celebrating',
@@ -537,11 +551,25 @@ export const LetterDraw = {
 
     if (interiorCells.length === 0 || inkCells.length === 0) return { coverage: 0, overflowRatio: 0 };
 
-    const hasNeighbor = (cells, cell) =>
-      cells.some(([c, r]) => Math.abs(c - cell[0]) <= toleranceCells && Math.abs(r - cell[1]) <= toleranceCells);
+    // Set-Lookup statt verschachteltem cells.some()-Scan (O(n*m)): bei
+    // größerer Zeichenfläche/vielen gefüllten Zellen sonst spürbar
+    // trödelig, weil scoreDrawing() synchron im Klick-Handler von
+    // "Fertig" läuft. ±toleranceCells Nachbarn werden direkt per Key
+    // nachgeschlagen statt die komplette andere Zellliste zu durchsuchen.
+    const cellKey = (c, r) => `${c},${r}`;
+    const hasNeighbor = (cellSet, cell) => {
+      for (let dc = -toleranceCells; dc <= toleranceCells; dc++) {
+        for (let dr = -toleranceCells; dr <= toleranceCells; dr++) {
+          if (cellSet.has(cellKey(cell[0] + dc, cell[1] + dr))) return true;
+        }
+      }
+      return false;
+    };
+    const interiorSet = new Set(interiorCells.map(([c, r]) => cellKey(c, r)));
+    const inkSet = new Set(inkCells.map(([c, r]) => cellKey(c, r)));
 
-    const coverage = interiorCells.filter(cell => hasNeighbor(inkCells, cell)).length / interiorCells.length;
-    const inkInsideCount = inkCells.filter(cell => hasNeighbor(interiorCells, cell)).length;
+    const coverage = interiorCells.filter(cell => hasNeighbor(inkSet, cell)).length / interiorCells.length;
+    const inkInsideCount = inkCells.filter(cell => hasNeighbor(interiorSet, cell)).length;
     const overflowRatio = 1 - inkInsideCount / inkCells.length;
 
     return { coverage, overflowRatio };

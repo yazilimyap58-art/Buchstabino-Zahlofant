@@ -67,14 +67,18 @@ export const CONFIG = {
     { upper: 'Z', lower: 'z', word: 'Zebra', emoji: '🦓' }
   ],
   // Emoji motifs (can be extended)
+  // `id` ist der stabile Schlüssel für die vorgenerierten TTS-Audiodateien
+  // (audio/motif_<id>_sg.mp3 / _pl.mp3, siehe scripts/tts-texts.mjs) - nicht
+  // aus `name` ableiten, da das bei Umbenennungen sonst die Audio-Zuordnung
+  // bricht.
   motifs: [
-    { name: 'Schmetterling', plural: 'Schmetterlinge', emoji: '🦋', category: 'tier' },
-    { name: 'Biene', plural: 'Bienen', emoji: '🐝', category: 'tier' },
-    { name: 'Apfel', plural: 'Äpfel', emoji: '🍎', category: 'obst' },
-    { name: 'Birne', plural: 'Birnen', emoji: '🍐', category: 'obst' },
-    { name: 'Blume', plural: 'Blumen', emoji: '🌸', category: 'pflanze' },
-    { name: 'Stern', plural: 'Sterne', emoji: '⭐', category: 'himmel' },
-    { name: 'Herz', plural: 'Herzen', emoji: '❤️', category: 'symbol' },
-    { name: 'Auto', plural: 'Autos', emoji: '🚗', category: 'verkehr' }
+    { id: 'schmetterling', name: 'Schmetterling', plural: 'Schmetterlinge', emoji: '🦋', category: 'tier' },
+    { id: 'biene', name: 'Biene', plural: 'Bienen', emoji: '🐝', category: 'tier' },
+    { id: 'apfel', name: 'Apfel', plural: 'Äpfel', emoji: '🍎', category: 'obst' },
+    { id: 'birne', name: 'Birne', plural: 'Birnen', emoji: '🍐', category: 'obst' },
+    { id: 'blume', name: 'Blume', plural: 'Blumen', emoji: '🌸', category: 'pflanze' },
+    { id: 'stern', name: 'Stern', plural: 'Sterne', emoji: '⭐', category: 'himmel' },
+    { id: 'herz', name: 'Herz', plural: 'Herzen', emoji: '❤️', category: 'symbol' },
+    { id: 'auto', name: 'Auto', plural: 'Autos', emoji: '🚗', category: 'verkehr' }
   ]
 };

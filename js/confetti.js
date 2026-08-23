@@ -60,7 +60,13 @@ export const Confetti = {
 
     this.ctx.clearRect(0, 0, this.width, this.height);
 
-    this.particles.forEach((p, idx) => {
+    // Rückwärts iterieren statt forEach+splice: splice() während einer
+    // forEach-Iteration lässt das nachrückende Element für diesen Frame
+    // aus (das Array verschiebt sich unter dem laufenden Index) - rückwärts
+    // verschiebt splice() nur bereits besuchte Indizes, nie noch offene.
+    for (let idx = this.particles.length - 1; idx >= 0; idx--) {
+      const p = this.particles[idx];
+
       // Update physics
       p.speed.x *= p.friction;
       p.speed.y *= p.friction;
@@ -74,7 +80,7 @@ export const Confetti = {
       // Remove if faded out
       if (p.opacity <= 0) {
         this.particles.splice(idx, 1);
-        return;
+        continue;
       }
 
       // Draw
@@ -88,7 +94,7 @@ export const Confetti = {
       this.ctx.globalAlpha = p.opacity;
       this.ctx.fill();
       this.ctx.restore();
-    });
+    }
 
     requestAnimationFrame(() => this.update());
   }
