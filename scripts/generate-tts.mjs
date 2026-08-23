@@ -1,4 +1,4 @@
-Ma#!/usr/bin/env node
+#!/usr/bin/env node
 // Einmaliges Dev-Tool: erzeugt alle Audio-Bausteine aus tts-texts.mjs via
 // ElevenLabs und legt sie unter audio/<key>.mp3 ab. Läuft NICHT im
 // deployten Spiel mit - reines Build-Zeit-Skript, das der Entwickler lokal
