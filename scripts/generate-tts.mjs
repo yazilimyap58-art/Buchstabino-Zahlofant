@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+Ma#!/usr/bin/env node
 // Einmaliges Dev-Tool: erzeugt alle Audio-Bausteine aus tts-texts.mjs via
 // ElevenLabs und legt sie unter audio/<key>.mp3 ab. Läuft NICHT im
 // deployten Spiel mit - reines Build-Zeit-Skript, das der Entwickler lokal
@@ -18,12 +18,7 @@ import { TTS_TEXTS } from './tts-texts.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const AUDIO_DIR = path.join(ROOT, 'audio');
-// Zwischen zwei Requests: Free-Plan-Rate-Limits (Requests/Minute) sind
-// niedriger als bei bezahlten Tarifen - eine kleine Pause vermeidet 429er
-// zuverlässiger als nur nachträglicher Retry.
-const REQUEST_DELAY_MS = 400;
-const MAX_RETRIES = 3;
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const ELEVENLABS_MODEL = 'eleven_multilingual_v2';
 
 function loadEnv() {
   const envPath = path.join(ROOT, '.env');
@@ -46,12 +41,6 @@ function loadEnv() {
 loadEnv();
 
 const API_KEY = process.env.ELEVENLABS_API_KEY;
-// Überschreibbar in .env, falls eleven_multilingual_v2 im aktuellen Plan
-// gesperrt/eingeschränkt ist (siehe .env.example).
-const ELEVENLABS_MODEL = process.env.ELEVENLABS_MODEL || 'eleven_v3';
-// Kinder brauchen langsamer gesprochene Sätze als der API-Default (1.0);
-// Wertebereich laut ElevenLabs ca. 0.7-1.2. Überschreibbar in .env.
-const ELEVENLABS_SPEED = Number(process.env.ELEVENLABS_SPEED) || 0.85;
 const VOICE_IDS = {
   buchstabino: process.env.ELEVENLABS_VOICE_ID_BUCHSTABINO,
   zahlofant: process.env.ELEVENLABS_VOICE_ID_ZAHLOFANT
@@ -78,43 +67,31 @@ async function synthesize(key, { text, voice }) {
 
   if (!force && existsSync(outPath)) {
     console.log(`  – ${key}.mp3 existiert schon, übersprungen`);
-    return false;
+    return;
   }
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: 'POST',
-      headers: {
-        'xi-api-key': API_KEY,
-        'Content-Type': 'application/json',
-        'Accept': 'audio/mpeg'
-      },
-      body: JSON.stringify({
-        text,
-        model_id: ELEVENLABS_MODEL,
-        voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: ELEVENLABS_SPEED }
-      })
-    });
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    method: 'POST',
+    headers: {
+      'xi-api-key': API_KEY,
+      'Content-Type': 'application/json',
+      'Accept': 'audio/mpeg'
+    },
+    body: JSON.stringify({
+      text,
+      model_id: ELEVENLABS_MODEL,
+      voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+    })
+  });
 
-    if (res.ok) {
-      const buffer = Buffer.from(await res.arrayBuffer());
-      writeFileSync(outPath, buffer);
-      console.log(`  ✓ ${key}.mp3 (${voice}, "${text}")`);
-      return true;
-    }
-
-    // 429 (Rate-Limit, häufig auf Free-Plänen) verdient einen Retry mit
-    // steigender Wartezeit statt eines sofortigen Abbruchs.
-    if (res.status === 429 && attempt < MAX_RETRIES) {
-      const waitMs = REQUEST_DELAY_MS * 2 ** attempt;
-      console.log(`  … ${key}: 429 (Rate-Limit), Versuch ${attempt}/${MAX_RETRIES}, warte ${waitMs}ms`);
-      await sleep(waitMs);
-      continue;
-    }
-
+  if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`ElevenLabs-Fehler ${res.status} für "${key}" ("${text}"): ${body}`);
   }
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+  writeFileSync(outPath, buffer);
+  console.log(`  ✓ ${key}.mp3 (${voice}, "${text}")`);
 }
 
 async function main() {
@@ -122,19 +99,12 @@ async function main() {
   console.log(`Erzeuge ${entries.length} Audio-Datei(en) in ${AUDIO_DIR}...\n`);
 
   const failures = [];
-  let charsUsed = 0;
   // Sequenziell statt parallel: ElevenLabs' Free/Starter-Tarife haben ein
   // niedriges Concurrent-Request-Limit; parallele Requests würden mit 429
-  // (Too Many Requests) scheitern statt Zeit zu sparen. REQUEST_DELAY_MS
-  // zwischen echten Calls (nicht bei übersprungenen) schont zusätzlich das
-  // Requests/Minute-Limit des Free-Plans.
+  // (Too Many Requests) scheitern statt Zeit zu sparen.
   for (const [key, entry] of entries) {
     try {
-      const requested = await synthesize(key, entry);
-      if (requested) {
-        charsUsed += entry.text.length;
-        await sleep(REQUEST_DELAY_MS);
-      }
+      await synthesize(key, entry);
     } catch (err) {
       console.error(`  ✗ ${key}: ${err.message}`);
       failures.push(key);
@@ -142,7 +112,6 @@ async function main() {
   }
 
   console.log(`\nFertig. ${entries.length - failures.length}/${entries.length} erfolgreich.`);
-  console.log(`Verbrauchte Zeichen in diesem Lauf: ${charsUsed} (Modell: ${ELEVENLABS_MODEL})`);
   if (failures.length) {
     console.log(`Fehlgeschlagen: ${failures.join(', ')}`);
     process.exit(1);
