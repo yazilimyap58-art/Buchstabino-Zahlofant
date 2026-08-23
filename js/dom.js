@@ -53,6 +53,7 @@ export const EL = {
   drawGuideCanvas: document.getElementById('draw-guide-canvas'),
   drawInkCanvas: document.getElementById('draw-ink-canvas'),
   drawStars: document.getElementById('draw-stars'),
+  btnDrawMenu: document.getElementById('btn-draw-menu'),
   btnDrawClear: document.getElementById('btn-draw-clear'),
   btnDrawRepeat: document.getElementById('btn-draw-repeat'),
   btnDrawNext: document.getElementById('btn-draw-next')

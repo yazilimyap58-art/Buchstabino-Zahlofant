@@ -529,6 +529,13 @@ export const Game = {
       this.showScreen(isLetterMode ? 'letters-mode-select' : 'mode-select');
     });
 
+    // Menu button auf dem Zeichnen-Screen (eigener Screen, nicht Teil von
+    // screen-game) - Zeichnen gibt es nur unter Buchstaben, deshalb immer
+    // zurück zur Buchstaben-Moduswahl, nicht zur allgemeinen Kategoriewahl.
+    EL.btnDrawMenu.addEventListener('click', () => {
+      this.showScreen('letters-mode-select');
+    });
+
     // Repeat button
     EL.btnRepeat.addEventListener('click', () => {
       this.speakQuestion();
