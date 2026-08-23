@@ -936,6 +936,8 @@ const Confetti = {
 const LetterDraw = {
   guideCtx: null,
   inkCtx: null,
+  maskCanvas: null, // unsichtbares Offscreen-Canvas: enthält die volle Buchstaben-Innenfläche für die Bewertung
+  maskCtx: null,
   width: 0,
   height: 0,
   isDrawing: false,
@@ -943,12 +945,25 @@ const LetterDraw = {
   currentLetter: null,
   currentCase: 'upper',
   phase: 'guided', // 'guided' | 'freehand'
-  guideBandWidth: 10, // Breite der Führungslinie (CSS px) - dünn genug, damit sie sichtbar hohl wirkt (zum Nachfahren) statt wie eine ausgefüllte Fläche
   inkLineWidth: 16,
+
+  // Nachfahren: harte Schwelle - unter 90% Ausfüllung der Buchstaben-Innenfläche
+  // gilt "Fertig" nicht, es muss weiter/erneut ausgemalt werden.
+  fillPassScore: 0.9,
+  // Freihand: ohne sichtbare Vorlage ist eine so hohe Trefferquote unrealistisch,
+  // daher niedrigere (weiche) Schwelle - siehe handleNext() für die Begründung,
+  // warum hier trotzdem immer weitergegangen wird statt hart zu blockieren.
+  freehandFillPassScore: 0.35,
+  // Anteil der Tinte, der AUSSERHALB der Buchstaben-Innenfläche liegen darf,
+  // bevor der Versuch trotz hoher Coverage abgelehnt wird - verhindert, dass
+  // schlicht die gesamte Fläche vollgemalt wird ("Coverage geschenkt").
+  maxOverflowRatio: 0.55,
 
   init() {
     this.guideCtx = EL.drawGuideCanvas.getContext('2d');
     this.inkCtx = EL.drawInkCanvas.getContext('2d', { willReadFrequently: true });
+    this.maskCanvas = document.createElement('canvas');
+    this.maskCtx = this.maskCanvas.getContext('2d', { willReadFrequently: true });
     window.addEventListener('resize', () => this.resize());
 
     EL.drawInkCanvas.addEventListener('pointerdown', this.handlePointerDown.bind(this));
@@ -966,13 +981,17 @@ const LetterDraw = {
     if (rect.width === 0) return; // Screen gerade nicht sichtbar
     this.width = rect.width;
     this.height = rect.height;
-    [EL.drawGuideCanvas, EL.drawInkCanvas].forEach(canvas => {
+    [EL.drawGuideCanvas, EL.drawInkCanvas, this.maskCanvas].forEach(canvas => {
       canvas.width = rect.width * devicePixelRatio;
       canvas.height = rect.height * devicePixelRatio;
     });
     this.guideCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     this.inkCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    if (this.currentLetter && this.phase === 'guided') this.drawGuide();
+    this.maskCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    if (this.currentLetter) {
+      this.drawMask();
+      if (this.phase === 'guided') this.drawGuide();
+    }
   },
 
   start() {
@@ -991,8 +1010,9 @@ const LetterDraw = {
     EL.drawGuideCanvas.hidden = false;
     EL.drawStars.hidden = true;
     EL.btnDrawNext.textContent = 'Fertig ✓';
-    EL.drawQuestion.textContent = `Fahre den Buchstaben „${this.currentLetter[this.currentCase]}“ nach`;
+    EL.drawQuestion.textContent = `Mal den Buchstaben „${this.currentLetter[this.currentCase]}“ komplett aus`;
     this.clearInk();
+    this.drawMask();
     this.drawGuide();
     this.speakLetter();
   },
@@ -1006,24 +1026,55 @@ const LetterDraw = {
     this.clearInk();
   },
 
-  // Führungslinie: großer Buchstabe aus Systemschrift statt handgepflegter
-  // Pfaddaten pro Buchstabe (kein Content-Aufwand für Strichrichtung/Pfeile -
-  // dafür auch keine Schreibrichtungs-Pfeile in dieser ersten Version).
-  // Wichtig: strokeText() statt fillText()! Eine gefüllte Fläche würde bei
-  // breiten Buchstaben fast den ganzen Canvas abdecken - dann "besteht" jede
-  // beliebige Kritzelei irgendwo in der Fläche die Trefferprüfung. Der Umriss
-  // (dünne Linie) zwingt zum tatsächlichen Nachfahren.
+  // Gemeinsame Font-/Positionsangaben für Anzeige-Guide und (unsichtbare)
+  // Bewertungs-Maske - müssen exakt übereinstimmen, sonst sieht das Kind
+  // eine andere Fläche als die, die tatsächlich geprüft wird.
+  glyphSpec() {
+    return {
+      font: `bold ${Math.floor(this.height * 0.72)}px system-ui, sans-serif`,
+      x: this.width / 2,
+      y: this.height / 2 + this.height * 0.02
+    };
+  },
+
+  // Anzeige: großer Buchstabe aus Systemschrift statt handgepflegter
+  // Pfaddaten pro Buchstabe (kein Content-Aufwand für Strichrichtung/Pfeile).
+  // Leichte Füllung + Umrandung wie in einem Ausmalbild - macht sichtbar,
+  // dass die ganze Fläche ausgemalt werden soll, nicht nur eine Linie
+  // nachgefahren wird (siehe drawMask()/scoreDrawing() für die Bewertung,
+  // die auf einer separaten, unsichtbaren Voll-Füllung basiert).
   drawGuide() {
     const ctx = this.guideCtx;
+    const { font, x, y } = this.glyphSpec();
     ctx.clearRect(0, 0, this.width, this.height);
     ctx.save();
-    ctx.font = `bold ${Math.floor(this.height * 0.72)}px system-ui, sans-serif`;
+    ctx.font = font;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.lineWidth = this.guideBandWidth;
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.16)';
+    ctx.fillText(this.currentLetter[this.currentCase], x, y);
+    ctx.lineWidth = 3;
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = 'rgba(100, 116, 139, 0.55)';
-    ctx.strokeText(this.currentLetter[this.currentCase], this.width / 2, this.height / 2 + this.height * 0.02);
+    ctx.strokeStyle = 'rgba(100, 116, 139, 0.6)';
+    ctx.strokeText(this.currentLetter[this.currentCase], x, y);
+    ctx.restore();
+  },
+
+  // Bewertungs-Maske: dieselbe Buchstabenfläche voll (nicht nur als Umriss)
+  // gefüllt, aber auf einem unsichtbaren Offscreen-Canvas - das ist die
+  // Grundlage für "wie viel % der Buchstabenfläche wurden ausgemalt?" in
+  // scoreDrawing(). Bleibt für beide Phasen (Nachfahren + Freihand)
+  // desselben Buchstabens erhalten, siehe beginFreehandPhase().
+  drawMask() {
+    const ctx = this.maskCtx;
+    const { font, x, y } = this.glyphSpec();
+    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.save();
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000';
+    ctx.fillText(this.currentLetter[this.currentCase], x, y);
     ctx.restore();
   },
 
@@ -1074,40 +1125,48 @@ const LetterDraw = {
 
   handleNext() {
     if (this.phase === 'guided') {
-      const score = this.scoreDrawing();
-      this.showStars(score);
-      STATE.streak++;
-      STATE.totalCorrect++;
-      Game.saveState();
+      const { coverage, overflowRatio } = this.scoreDrawing();
+      const passed = coverage >= this.fillPassScore && overflowRatio <= this.maxOverflowRatio;
+      this.showStars(coverage);
 
-      const audioDone = withTimeout(TTS.speak(this.praiseFor(score), 'de-DE', {rate: 0.9}), 3000);
-
-      // Konfetti/Feiern nur bei einer echten, erkennbaren Nachfahr-Leistung -
-      // sonst würde jede beliebige Kritzelei optisch genauso "gefeiert" wie
-      // ein sauberer Nachfahr-Versuch. Kein hartes "Falsch", aber ein
-      // spürbarer Unterschied im Feedback (siehe scoreDrawing()).
-      if (score >= this.passScore) {
+      if (passed) {
+        // Erst hier zählt der Versuch als abgeschlossen - Fortschritt wird
+        // nur bei einer tatsächlich validierten Leistung fortgeschrieben.
+        STATE.streak++;
+        STATE.totalCorrect++;
+        Game.saveState();
         Mascot.celebrate(EL.mascotDraw, 'buchstabino');
         const confettiDone = withTimeout(Confetti.trigger(), 2500);
+        const audioDone = withTimeout(TTS.speak('Super gemacht!', 'de-DE', {rate: 0.9}), 3000);
         Promise.all([confettiDone, audioDone]).then(() => this.beginFreehandPhase());
       } else {
+        // Hartes "erneut versuchen" statt Weiterschalten: unter 90%
+        // ausgemalter Fläche (oder zu viel Tinte ausserhalb des Buchstabens)
+        // gilt "Fertig" nicht. Die Zeichnung bleibt erhalten, damit einfach
+        // weiter ausgemalt werden kann, statt von vorne anfangen zu müssen.
         Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
-        audioDone.then(() => {
-          Mascot.set(EL.mascotDraw, 'buchstabino', 'idle');
-          this.beginFreehandPhase();
-        });
+        const message = overflowRatio > this.maxOverflowRatio
+          ? 'Achte darauf, innerhalb des Buchstabens zu bleiben, und mal weiter aus!'
+          : 'Noch nicht ganz - mal den Buchstaben weiter aus!';
+        TTS.speak(message, 'de-DE', {rate: 0.9}).then(
+          () => Mascot.set(EL.mascotDraw, 'buchstabino', 'idle'),
+          () => Mascot.set(EL.mascotDraw, 'buchstabino', 'idle')
+        );
       }
     } else {
-      // Freihand zeigt keine Führungslinie, aber sie steht (nur unsichtbar)
-      // weiterhin auf dem Guide-Canvas - wird für eine echte, wenn auch
-      // grosszügigere Prüfung wiederverwendet. Ohne das würde diese Phase
-      // JEDE Eingabe (auch eine leere Fläche) unterschiedslos als "Toll
-      // gemalt!" feiern, was genau der gemeldete Bug war.
-      const score = this.scoreDrawing();
-      const passed = score >= this.freehandPassScore;
+      // Freihand hat keine sichtbare Vorlage, die (unsichtbare) Maske vom
+      // Nachfahren bleibt aber bestehen (siehe drawMask()/beginFreehandPhase())
+      // und wird hier für eine deutlich grosszügigere, aber echte Prüfung
+      // wiederverwendet - ohne das würde diese Phase JEDE Eingabe (auch eine
+      // leere Fläche) unterschiedslos als "Toll gemalt!" feiern. Anders als
+      // beim Nachfahren wird hier trotzdem immer weitergegangen: ohne
+      // sichtbare Linie ist ein hartes Blockieren nicht fair, das Kind soll
+      // nur ehrliches statt beliebiges Feedback bekommen.
+      const { coverage, overflowRatio } = this.scoreDrawing();
+      const passed = coverage >= this.freehandFillPassScore && overflowRatio <= this.maxOverflowRatio + 0.1;
       const audioDone = withTimeout(
-        TTS.speak(passed ? 'Toll gemalt!' : 'Versuch mal, dich genau an die Form zu erinnern!', 'de-DE', {rate: 0.9}),
-        2500
+        TTS.speak(passed ? 'Toll gemalt!' : 'Guter Versuch! Versuch dich beim nächsten Mal genau an die Form zu erinnern.', 'de-DE', {rate: 0.9}),
+        3000
       );
 
       if (passed) {
@@ -1124,36 +1183,24 @@ const LetterDraw = {
     }
   },
 
-  passScore: 0.5, // ab hier gilt der geführte Versuch als "getroffen" (Konfetti/Feiern)
-  freehandPassScore: 0.22, // niedrigere Schwelle: ohne sichtbare Linie ist Treffen viel schwerer
-
-  praiseFor(score) {
-    if (score >= 0.75) return 'Super gemacht!';
-    if (score >= this.passScore) return 'Gut gemacht, weiter so!';
-    return 'Guter Versuch! Schau dir die Linie noch mal genau an und probier es gleich noch mal.';
-  },
-
-  showStars(score) {
-    const starCount = score >= 0.75 ? 3 : score >= this.passScore ? 2 : 1; // nie 0 Sterne: sanftes Feedback statt harter Fehlermeldung
+  showStars(coverage) {
+    const starCount = coverage >= this.fillPassScore ? 3 : coverage >= 0.5 ? 2 : 1; // nie 0 Sterne: sanftes Feedback statt harter Fehlermeldung
     EL.drawStars.textContent = '⭐'.repeat(starCount) + '☆'.repeat(3 - starCount);
     EL.drawStars.hidden = false;
   },
 
-  // Grobe Trefferanalyse per Grid-Sampling statt exaktem Pixelvergleich:
-  // vergleicht, wie viel der Führungslinie mit Tinte bedeckt wurde (Coverage)
-  // und wie viel der Tinte tatsächlich nahe der Führungslinie liegt
-  // (Precision) statt wahllos über den Canvas verteilt zu sein. Die
-  // Führungslinie selbst ist nur ein dünnes Band (siehe drawGuide()) -
-  // deshalb bestraft die Precision-Komponente wirksam große Kritzeleien, die
-  // einfach die ganze Fläche bedecken, ohne dem Buchstaben zu folgen.
+  // Trefferanalyse per Grid-Sampling statt exaktem Pixelvergleich: prüft,
+  // wie viel Prozent der Buchstaben-INNENFLÄCHE (drawMask(), voll gefüllt,
+  // nicht nur ein Umriss) mit Tinte bedeckt wurde (Coverage), und welcher
+  // Anteil der Tinte ausserhalb dieser Fläche liegt (overflowRatio) - eine
+  // einzelne Linie oder ein Kritzel über den ganzen Canvas fällt so
+  // zuverlässig durch, ohne dass pixelgenaues Zeichnen nötig wäre.
   scoreDrawing() {
     const gridStep = 6;
     const toleranceCells = 1; // ±1 Zelle (~6px) Toleranz für zittrige Kinderhände, nicht mehr
     const dpr = window.devicePixelRatio || 1;
-    const guideCanvas = EL.drawGuideCanvas;
-    const inkCanvas = EL.drawInkCanvas;
-    const guideData = this.guideCtx.getImageData(0, 0, guideCanvas.width, guideCanvas.height);
-    const inkData = this.inkCtx.getImageData(0, 0, inkCanvas.width, inkCanvas.height);
+    const maskData = this.maskCtx.getImageData(0, 0, this.maskCanvas.width, this.maskCanvas.height);
+    const inkData = this.inkCtx.getImageData(0, 0, EL.drawInkCanvas.width, EL.drawInkCanvas.height);
     const cols = Math.floor(this.width / gridStep);
     const rows = Math.floor(this.height / gridStep);
 
@@ -1164,29 +1211,27 @@ const LetterDraw = {
       return imageData.data[(py * imageData.width + px) * 4 + 3];
     };
 
-    const guideCells = [];
+    const interiorCells = [];
     const inkCells = [];
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const x = c * gridStep + gridStep / 2;
         const y = r * gridStep + gridStep / 2;
-        if (alphaAt(guideData, x, y) > 40) guideCells.push([c, r]);
+        if (alphaAt(maskData, x, y) > 40) interiorCells.push([c, r]);
         if (alphaAt(inkData, x, y) > 40) inkCells.push([c, r]);
       }
     }
 
-    if (guideCells.length === 0 || inkCells.length === 0) return 0;
+    if (interiorCells.length === 0 || inkCells.length === 0) return { coverage: 0, overflowRatio: 0 };
 
     const hasNeighbor = (cells, cell) =>
       cells.some(([c, r]) => Math.abs(c - cell[0]) <= toleranceCells && Math.abs(r - cell[1]) <= toleranceCells);
 
-    const coverage = guideCells.filter(cell => hasNeighbor(inkCells, cell)).length / guideCells.length;
-    const precision = inkCells.filter(cell => hasNeighbor(guideCells, cell)).length / inkCells.length;
+    const coverage = interiorCells.filter(cell => hasNeighbor(inkCells, cell)).length / interiorCells.length;
+    const inkInsideCount = inkCells.filter(cell => hasNeighbor(interiorCells, cell)).length;
+    const overflowRatio = 1 - inkInsideCount / inkCells.length;
 
-    // Precision etwas höher gewichtet als Coverage: verhindert, dass eine große
-    // Kritzelei über die gesamte Fläche (hohe Coverage "geschenkt") allein
-    // schon als gute Leistung durchgeht - sie muss auch der Linie folgen.
-    return coverage * 0.45 + precision * 0.55;
+    return { coverage, overflowRatio };
   }
 };
 
