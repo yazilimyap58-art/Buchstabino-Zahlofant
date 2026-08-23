@@ -12,6 +12,7 @@
   --color-text-secondary: #64748b;
   --color-wrong: #f87171;
   --color-correct: #4ade80;
+  --color-hint: #fbbf24;
   --color-option-bg: #f1f5f9;
   --color-option-hover: #e2e8f0;
   --color-progress-bg: #e2e8f0;
@@ -349,6 +350,17 @@ body {
   animation: shakeTile 0.4s ease;
 }
 
+/* Hilfe-Funktion: hebt die richtige Kachel/den richtigen Button hervor,
+   ohne sie automatisch auszuwählen - das Kind tippt trotzdem selbst. */
+.letter-tile--hint {
+  animation: hintPulseTile 0.9s ease-in-out infinite;
+}
+
+@keyframes hintPulseTile {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.6); }
+  50% { transform: translate(-50%, -50%) scale(1.12); box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+}
+
 /* Wie correctPulse/shake, aber unter Beibehaltung des translate(-50%, -50%)
    Positionierungs-Transforms der Kacheln - sonst springt die Kachel während
    der Animation kurz an die obere linke Ecke der Bühne. */
@@ -487,6 +499,17 @@ body {
   animation: shake 0.4s ease;
 }
 
+/* Hilfe-Funktion: siehe .letter-tile--hint - gleiches Prinzip, ohne den
+   translate(-50%, -50%)-Positionierungs-Sonderfall der Kacheln. */
+.option-btn--hint {
+  animation: hintPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes hintPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.6); }
+  50% { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); }
+}
+
 /* Feedback Animation */
 @keyframes correctPulse {
   0%, 100% { transform: scale(1); }
@@ -553,6 +576,23 @@ body {
 
 .draw-ink-canvas {
   touch-action: none;
+}
+
+/* Hilfe-Funktion: kleiner Punkt, der einmal den Buchstaben-Pfad abfährt
+   (Position wird per JS in LetterDraw.showHelp() animiert). */
+.draw-help-marker {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: var(--color-hint);
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.35), var(--shadow-medium);
+  pointer-events: none;
+}
+
+.draw-help-marker[hidden] {
+  display: none;
 }
 
 .draw-stars {
@@ -687,6 +727,22 @@ body {
   flex-shrink: 0;
 }
 
+/* Hilfe-Funktion: fliegende Kopie des Kopfzeilen-Maskottchens, die zur
+   richtigen Antwort schwebt und zeigt (siehe Mascot.flyTo() in mascot.js).
+   Position/Größe werden per JS gesetzt (FLIP-Technik: erst ohne Transition
+   exakt über das Original legen, dann zur Zielposition animieren). */
+.mascot-flyer {
+  position: fixed;
+  z-index: 500;
+  pointer-events: none;
+  object-fit: contain;
+  transition: left 0.7s cubic-bezier(0.4, 0, 0.2, 1), top 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mascot-flyer[hidden] {
+  display: none;
+}
+
 /* Jede Pose hat ihre eigene Loop-Animation. Neue Posen (z.B. "retry")
    funktionieren automatisch mit sanftem Bob, solange keine eigene Regel
    ergänzt wird - hier bewusst optional gehalten, nicht Pflicht. */
@@ -704,6 +760,10 @@ body {
 
 .mascot-img[data-pose="celebrating"] {
   animation: mascotCelebrate 0.5s ease-in-out infinite;
+}
+
+.mascot-img[data-pose="pointing"] {
+  animation: mascotPoint 0.8s ease-in-out infinite;
 }
 
 @keyframes mascotBob {
@@ -727,9 +787,15 @@ body {
   50% { transform: translateY(-8px) scale(1.08); }
 }
 
+@keyframes mascotPoint {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
 .btn-menu,
 .btn-repeat,
-.btn-pause {
+.btn-pause,
+.btn-help {
   background: var(--color-surface);
   border: 2px solid var(--color-primary);
   border-radius: var(--radius-sm);
@@ -749,7 +815,8 @@ body {
 @media (hover: hover) and (pointer: fine) {
   .btn-menu:hover,
   .btn-repeat:hover,
-  .btn-pause:hover {
+  .btn-pause:hover,
+  .btn-help:hover {
     background: var(--color-primary);
     color: var(--color-background);
   }
@@ -757,14 +824,16 @@ body {
 
 .btn-menu:focus-visible,
 .btn-repeat:focus-visible,
-.btn-pause:focus-visible {
+.btn-pause:focus-visible,
+.btn-help:focus-visible {
   outline: 2px solid var(--color-primary-dark);
   outline-offset: 2px;
 }
 
 .btn-menu:active,
 .btn-repeat:active,
-.btn-pause:active {
+.btn-pause:active,
+.btn-help:active {
   transform: scale(0.96);
 }
 

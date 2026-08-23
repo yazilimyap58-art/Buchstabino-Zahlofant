@@ -14,6 +14,11 @@
   <!-- Confetti Canvas -->
   <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
+  <!-- Hilfe-Funktion: fliegt vom Kopfzeilen-Maskottchen zur richtigen
+       Antwort (siehe Mascot.flyTo()); geteilt zwischen screen-game und
+       screen-letter-draw, da immer nur eines der beiden aktiv ist. -->
+  <img class="mascot-img mascot-flyer" id="mascot-flyer" data-pose="pointing" aria-hidden="true" hidden>
+
   <main class="app-shell" role="main" aria-label="Buchstabino & Zahlofant">
 
     <!-- Kategoriewahl-Screen (erste Ebene): Buchstaben oder Zahlen -->
@@ -135,6 +140,9 @@
         <button class="btn-repeat" id="btn-repeat" aria-label="Aufgabe wiederholen">
           <span aria-hidden="true">🔁</span> Wiederholen
         </button>
+        <button class="btn-help" id="btn-help" aria-label="Hilfe: richtige Antwort zeigen">
+          <span aria-hidden="true">💡</span> Hilfe
+        </button>
         <button class="btn-pause" id="btn-pause" aria-label="Pause">
           <span aria-hidden="true">⏸️</span> Pause
         </button>
@@ -153,6 +161,7 @@
       <div class="draw-stage">
         <canvas class="draw-guide-canvas" id="draw-guide-canvas" aria-hidden="true"></canvas>
         <canvas class="draw-ink-canvas" id="draw-ink-canvas" role="img" aria-label="Zeichenfläche"></canvas>
+        <div class="draw-help-marker" id="draw-help-marker" aria-hidden="true" hidden></div>
       </div>
 
       <div class="draw-stars" id="draw-stars" aria-live="polite" hidden></div>
@@ -161,6 +170,9 @@
         <button class="btn-secondary" id="btn-draw-clear" type="button">🧹 Löschen</button>
         <button class="btn-repeat" id="btn-draw-repeat" type="button" aria-label="Buchstabe wiederholen">
           <span aria-hidden="true">🔁</span> Hören
+        </button>
+        <button class="btn-help" id="btn-draw-help" type="button" aria-label="Hilfe: Buchstabe vorzeichnen">
+          <span aria-hidden="true">💡</span> Hilfe
         </button>
         <button class="btn-primary" id="btn-draw-next" type="button">Weiter ▶</button>
       </footer>

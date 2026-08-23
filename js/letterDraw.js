@@ -51,12 +51,14 @@ export const LetterDraw = {
 
     EL.btnDrawClear.addEventListener('click', () => this.clearInk());
     EL.btnDrawRepeat.addEventListener('click', () => this.speakLetter());
+    EL.btnDrawHelp.addEventListener('click', () => this.showHelp());
     EL.btnDrawNext.addEventListener('click', () => this.handleNext());
   },
 
   resize() {
     const rect = EL.drawInkCanvas.parentElement.getBoundingClientRect();
     if (rect.width === 0) return; // Screen gerade nicht sichtbar
+    this.cancelHelp(); // Koordinaten einer laufenden Hilfe-Animation würden sonst nicht mehr zur neuen Größe passen
     this.width = rect.width;
     this.height = rect.height;
     [EL.drawGuideCanvas, EL.drawInkCanvas, this.maskCanvas].forEach(canvas => {
@@ -84,6 +86,7 @@ export const LetterDraw = {
   },
 
   beginGuidedPhase() {
+    this.cancelHelp();
     this.phase = 'guided';
     EL.drawGuideCanvas.hidden = false;
     EL.drawStars.hidden = true;
@@ -96,6 +99,7 @@ export const LetterDraw = {
   },
 
   beginFreehandPhase() {
+    this.cancelHelp();
     this.phase = 'freehand';
     EL.drawGuideCanvas.hidden = true;
     EL.drawStars.hidden = true;
@@ -178,6 +182,122 @@ export const LetterDraw = {
     return { path, arrows };
   },
 
+  // Läuft für die Hilfe-Marker-Animation (showHelp()): Punkte entlang aller
+  // Striche des aktuellen Buchstabens sampeln, als diskrete Punktfolge statt
+  // Path2D (Path2D erlaubt keine Positions-Abfrage entlang des Pfads) -
+  // dieselben M/L/Q-Segmente wie buildLetterPath(), nur feiner aufgelöst.
+  sampleStrokePoints(stepsPerSegment = 18) {
+    const letterKey = this.currentLetter[this.currentCase];
+    const data = LETTER_PATHS[letterKey];
+    const t = this.letterTransform();
+    const strokesPoints = [];
+
+    for (const stroke of data.strokes) {
+      const points = [];
+      let current = null;
+      stroke.forEach(cmd => {
+        const [type, ...args] = cmd;
+        if (type === 'M') {
+          current = this.toCanvas(args[0], args[1], t);
+          points.push(current);
+        } else if (type === 'L') {
+          const to = this.toCanvas(args[0], args[1], t);
+          points.push(to);
+          current = to;
+        } else if (type === 'Q') {
+          const control = this.toCanvas(args[0], args[1], t);
+          const to = this.toCanvas(args[2], args[3], t);
+          for (let i = 1; i <= stepsPerSegment; i++) {
+            const s = i / stepsPerSegment;
+            points.push({
+              x: (1 - s) * (1 - s) * current.x + 2 * (1 - s) * s * control.x + s * s * to.x,
+              y: (1 - s) * (1 - s) * current.y + 2 * (1 - s) * s * control.y + s * s * to.y
+            });
+          }
+          current = to;
+        }
+      });
+      if (points.length > 1) strokesPoints.push(points);
+    }
+    return strokesPoints;
+  },
+
+  // Marker-Position für einen Fortschritt 0..1 über ALLE Striche hinweg,
+  // proportional zur Punktzahl je Strich (nicht zur geometrischen Länge) -
+  // für die kurze Hilfe-Animation ausreichend genau, kein Aufwand für
+  // Bogenlängen-Parametrisierung nötig.
+  pointAtProgress(strokesPoints, progress) {
+    const totalPoints = strokesPoints.reduce((sum, pts) => sum + pts.length, 0);
+    let target = progress * totalPoints;
+    for (const pts of strokesPoints) {
+      if (target < pts.length) {
+        return pts[Math.min(pts.length - 1, Math.floor(target))];
+      }
+      target -= pts.length;
+    }
+    const lastStroke = strokesPoints[strokesPoints.length - 1];
+    return lastStroke[lastStroke.length - 1];
+  },
+
+  // Hilfe-Funktion: das Maskottchen fliegt von der Kopfzeile zum Startpunkt
+  // des Buchstaben-Pfads (siehe Mascot.flyTo() - dort gibt es keinen echten
+  // Options-Button wie in den anderen Modi, daher ein kleines Ziel-Rechteck
+  // statt eines DOM-Elements) und ein Punkt fährt einmal den Pfad ab
+  // (dieselben Daten wie der Guide - siehe sampleStrokePoints()). Zeigt
+  // nichts, was der Guide nicht schon zeigt, nur langsam und explizit
+  // vorgeführt, für Kinder, die trotz Linie/Pfeilen nicht wissen, wo/wie
+  // sie anfangen sollen.
+  showHelp() {
+    if (STATE.isPaused || !this.currentLetter) return;
+
+    // Token statt reiner Boolean-Flag: eine laufende Animation muss sich
+    // selbst abbrechen können, sobald pickNewLetter()/beginGuidedPhase()/
+    // beginFreehandPhase() (via cancelHelp()) oder ein erneuter Hilfe-Klick
+    // sie ungültig gemacht hat - sonst würde eine alte rAF-Schleife nach
+    // einem Buchstabenwechsel weiterlaufen und den Marker falsch positionieren.
+    this.helpToken = (this.helpToken || 0) + 1;
+    const token = this.helpToken;
+
+    const strokesPoints = this.sampleStrokePoints();
+    if (strokesPoints.length === 0) return;
+
+    const totalPoints = strokesPoints.reduce((sum, pts) => sum + pts.length, 0);
+    const durationMs = Math.min(3200, Math.max(1200, totalPoints * 8));
+
+    const canvasRect = EL.drawInkCanvas.getBoundingClientRect();
+    const firstPoint = strokesPoints[0][0];
+    const startTargetRect = {
+      left: canvasRect.left + firstPoint.x - 20,
+      top: canvasRect.top + firstPoint.y - 20,
+      width: 40,
+      height: 40
+    };
+    Mascot.flyTo(EL.mascotDraw, 'buchstabino', startTargetRect, { holdMs: durationMs });
+    EL.drawHelpMarker.hidden = false;
+    const startTime = performance.now();
+
+    const step = (now) => {
+      if (token !== this.helpToken) return;
+      const progress = Math.min(1, (now - startTime) / durationMs);
+      const point = this.pointAtProgress(strokesPoints, progress);
+      EL.drawHelpMarker.style.left = `${point.x}px`;
+      EL.drawHelpMarker.style.top = `${point.y}px`;
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        EL.drawHelpMarker.hidden = true;
+      }
+    };
+    requestAnimationFrame(step);
+  },
+
+  // Bricht eine laufende Hilfe-Marker-Animation ab (neuer Buchstabe, neue
+  // Phase, Resize) - siehe Token-Erklärung in showHelp().
+  cancelHelp() {
+    this.helpToken = (this.helpToken || 0) + 1;
+    EL.drawHelpMarker.hidden = true;
+  },
+
   drawArrowhead(ctx, from, to) {
     const t = this.letterTransform();
     const size = Math.max(8, t.scale * 4.5);
@@ -240,8 +360,11 @@ export const LetterDraw = {
   },
 
   speakLetter() {
-    Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
-    const resetIdle = () => Mascot.set(EL.mascotDraw, 'buchstabino', 'idle');
+    // setIfCurrent() statt set(): falls währenddessen Hilfe getippt wurde
+    // (Mascot.flyTo()), soll dieser verzögerte Callback die neuere Pose
+    // nicht überschreiben (siehe Mascot.setIfCurrent()).
+    const thinkingGen = Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
+    const resetIdle = () => Mascot.setIfCurrent(EL.mascotDraw, 'buchstabino', 'idle', thinkingGen);
     TTS.speak(`${this.currentLetter[this.currentCase]} wie ${this.currentLetter.word}`, 'de-DE', {rate: 0.8})
       .then(resetIdle, resetIdle);
   },
@@ -301,14 +424,12 @@ export const LetterDraw = {
         // nachgefahrener Linie (oder zu viel Tinte ausserhalb des Bands)
         // gilt "Fertig" nicht. Die Zeichnung bleibt erhalten, damit einfach
         // weiter nachgefahren werden kann, statt von vorne anfangen zu müssen.
-        Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
+        const thinkingGen = Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
         const message = overflowRatio > this.maxOverflowRatio
           ? 'Achte darauf, auf der Linie zu bleiben, und fahr sie weiter nach!'
           : 'Noch nicht ganz - fahr die Linie weiter nach!';
-        TTS.speak(message, 'de-DE', {rate: 0.9}).then(
-          () => Mascot.set(EL.mascotDraw, 'buchstabino', 'idle'),
-          () => Mascot.set(EL.mascotDraw, 'buchstabino', 'idle')
-        );
+        const backToIdle = () => Mascot.setIfCurrent(EL.mascotDraw, 'buchstabino', 'idle', thinkingGen);
+        TTS.speak(message, 'de-DE', {rate: 0.9}).then(backToIdle, backToIdle);
       }
     } else {
       // Freihand hat keine sichtbare Vorlage, die (unsichtbare) Band-Maske
@@ -332,9 +453,9 @@ export const LetterDraw = {
         const confettiDone = withTimeout(Confetti.trigger(), 2000);
         Promise.all([confettiDone, audioDone]).then(() => this.pickNewLetter());
       } else {
-        Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
+        const thinkingGen = Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
         audioDone.then(() => {
-          Mascot.set(EL.mascotDraw, 'buchstabino', 'idle');
+          Mascot.setIfCurrent(EL.mascotDraw, 'buchstabino', 'idle', thinkingGen);
           this.pickNewLetter();
         });
       }

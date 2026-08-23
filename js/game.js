@@ -350,8 +350,11 @@ export const Game = {
 
     // Während die Aufgabe vorgelesen wird, "denkt" das Maskottchen nach;
     // danach zurück zu idle (egal ob Sprachausgabe erfolgreich war oder nicht).
-    Mascot.set(EL.mascotGame, character, 'thinking');
-    const resetMascotIdle = () => Mascot.set(EL.mascotGame, character, 'idle');
+    // setIfCurrent() statt set(): falls währenddessen z.B. Hilfe getippt
+    // wurde (Mascot.flyTo()), soll dieser verzögerte Callback die neuere
+    // Pose nicht überschreiben.
+    const thinkingGen = Mascot.set(EL.mascotGame, character, 'thinking');
+    const resetMascotIdle = () => Mascot.setIfCurrent(EL.mascotGame, character, 'idle', thinkingGen);
 
     if (mode === 'count') {
       // Nur die kurze Frage vorlesen, keine Objekt-Wiederholung
@@ -473,6 +476,32 @@ export const Game = {
     }
   },
 
+  // Hilfe-Funktion: zeigt (statt verrät per Sprache) die richtige Antwort -
+  // das Maskottchen fliegt von der Kopfzeile zum passenden Element (Options-
+  // Button oder, im Finden-Modus, die richtige Kachel; siehe Mascot.flyTo())
+  // und zeigt dort drauf, das Element bekommt zusätzlich einen pulsierenden
+  // Hint-Rahmen. Antippen muss das Kind trotzdem selbst - Hilfe wählt nichts
+  // automatisch aus und hat keine Auswirkung auf Streak/totalCorrect (siehe
+  // handleCorrect/handleWrong).
+  showHelp() {
+    if (!STATE.isPlaying || STATE.isPaused || !STATE.currentTask) return;
+
+    const { mode, answer } = STATE.currentTask;
+    const isFind = mode === 'lettersFind';
+    const targetEl = isFind
+      ? EL.motifStage.querySelector('.letter-tile[data-correct="true"]')
+      : Array.from(EL.optionButtons).find(btn => String(btn.dataset.value) === String(answer));
+    if (!targetEl) return;
+
+    Mascot.flyTo(EL.mascotGame, this.mascotCharacter(), targetEl, { holdMs: 1300 });
+
+    const hintClass = isFind ? 'letter-tile--hint' : 'option-btn--hint';
+    targetEl.classList.add(hintClass);
+    setTimeout(() => targetEl.classList.remove(hintClass), 2200);
+
+    TTS.speak('Schau mal genau hin!', 'de-DE', {rate: 0.9}).catch(() => {});
+  },
+
   showFeedback(message, type) {
     EL.feedbackMessage.textContent = message;
     EL.feedbackMessage.className = `feedback-message feedback-message--${type}`;
@@ -539,6 +568,11 @@ export const Game = {
     // Repeat button
     EL.btnRepeat.addEventListener('click', () => {
       this.speakQuestion();
+    });
+
+    // Help button
+    EL.btnHelp.addEventListener('click', () => {
+      this.showHelp();
     });
 
     // Pause button

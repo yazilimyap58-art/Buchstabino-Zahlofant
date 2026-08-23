@@ -40,6 +40,7 @@ export const EL = {
   // Controls
   btnMenu: document.getElementById('btn-menu'),
   btnRepeat: document.getElementById('btn-repeat'),
+  btnHelp: document.getElementById('btn-help'),
   btnPause: document.getElementById('btn-pause'),
 
   // Pause modal
@@ -53,8 +54,10 @@ export const EL = {
   drawGuideCanvas: document.getElementById('draw-guide-canvas'),
   drawInkCanvas: document.getElementById('draw-ink-canvas'),
   drawStars: document.getElementById('draw-stars'),
+  drawHelpMarker: document.getElementById('draw-help-marker'),
   btnDrawMenu: document.getElementById('btn-draw-menu'),
   btnDrawClear: document.getElementById('btn-draw-clear'),
   btnDrawRepeat: document.getElementById('btn-draw-repeat'),
+  btnDrawHelp: document.getElementById('btn-draw-help'),
   btnDrawNext: document.getElementById('btn-draw-next')
 };
