@@ -1,4 +1,4 @@
-Ma#!/usr/bin/env node
+#!/usr/bin/env node
 // Einmaliges Dev-Tool: erzeugt alle Audio-Bausteine aus tts-texts.mjs via
 // ElevenLabs und legt sie unter audio/<key>.mp3 ab. Läuft NICHT im
 // deployten Spiel mit - reines Build-Zeit-Skript, das der Entwickler lokal
@@ -94,8 +94,31 @@ async function synthesize(key, { text, voice }) {
   console.log(`  ✓ ${key}.mp3 (${voice}, "${text}")`);
 }
 
+// Isolierte Einzelwörter/-buchstaben/-zahlen dürfen NICHT über diesen
+// naiven Direkt-Synthese-Weg erzeugt werden - ohne Satzkontext spricht
+// ElevenLabs sie oft englisch aus (siehe README, Abschnitt "Neugenerierung
+// nach Plan-Wechsel"). Die brauchen stattdessen den with-timestamps-Workflow
+// (aktuell: scripts/generate-anlaut-words-tts.mjs für word_*; letter_*/num_*
+// wurden bisher manuell nach demselben Verfahren erzeugt). Wer sie hier
+// trotzdem explizit als Argument nennt, bekommt eine klare Fehlermeldung
+// statt eines still falsch ausgesprochenen Clips.
+const ISOLATED_KEY_PREFIXES = ['letter_', 'word_', 'motif_', 'num_'];
+const isIsolatedKey = key => ISOLATED_KEY_PREFIXES.some(prefix => key.startsWith(prefix));
+
 async function main() {
-  const entries = Object.entries(TTS_TEXTS).filter(([key]) => onlyKeys.length === 0 || onlyKeys.includes(key));
+  const requestedIsolated = onlyKeys.filter(isIsolatedKey);
+  if (requestedIsolated.length > 0) {
+    console.error(
+      `Diese Keys sind isolierte Einzelwörter/-buchstaben/-zahlen und dürfen nicht über generate-tts.mjs erzeugt werden ` +
+      `(siehe README "Neugenerierung nach Plan-Wechsel"): ${requestedIsolated.join(', ')}`
+    );
+    process.exit(1);
+  }
+
+  const entries = Object.entries(TTS_TEXTS).filter(([key]) => {
+    if (isIsolatedKey(key)) return false;
+    return onlyKeys.length === 0 || onlyKeys.includes(key);
+  });
   console.log(`Erzeuge ${entries.length} Audio-Datei(en) in ${AUDIO_DIR}...\n`);
 
   const failures = [];
