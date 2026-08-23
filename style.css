@@ -777,9 +777,12 @@ body {
   75% { transform: rotate(8deg); }
 }
 
+/* Leichtes Wachsen zusätzlich zum Wippen, während das Maskottchen eine
+   Frage stellt/vorliest - macht die Kopfzeilen-Pose etwas präsenter, ohne
+   die Bühne zu verlassen (siehe "Frage stellen" in CLAUDE.md). */
 @keyframes mascotTilt {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
+  0%, 100% { transform: rotate(-3deg) scale(1); }
+  50% { transform: rotate(3deg) scale(1.08); }
 }
 
 @keyframes mascotCelebrate {

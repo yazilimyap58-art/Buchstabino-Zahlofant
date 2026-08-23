@@ -415,9 +415,22 @@ export const LetterDraw = {
         STATE.streak++;
         STATE.totalCorrect++;
         Game.saveState();
-        Mascot.celebrate(EL.mascotDraw, 'buchstabino');
-        const confettiDone = withTimeout(Confetti.trigger(), 2500);
+        // Große Center-Stage-Feier wie bei den anderen Modi (siehe
+        // Game.handleCorrect()): Maskottchen kommt auf die Zeichenfläche
+        // herunter, Konfetti startet erst beim Ankommen (onArrive).
         const audioDone = withTimeout(TTS.speak('Super gemacht!', 'de-DE', {rate: 0.9}), 3000);
+        const confettiDone = new Promise(resolve => {
+          Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+            pose: 'celebrating',
+            align: 'center',
+            vAlign: 'center',
+            size: { width: 110, height: 110 },
+            holdMs: 1600,
+            flightMs: 500,
+            holdUntil: audioDone,
+            onArrive: () => withTimeout(Confetti.trigger(), 2100).then(resolve)
+          });
+        });
         Promise.all([confettiDone, audioDone]).then(() => this.beginFreehandPhase());
       } else {
         // Hartes "erneut versuchen" statt Weiterschalten: unter 75%
@@ -449,15 +462,35 @@ export const LetterDraw = {
       );
 
       if (passed) {
-        Mascot.celebrate(EL.mascotDraw, 'buchstabino');
-        const confettiDone = withTimeout(Confetti.trigger(), 2000);
+        const confettiDone = new Promise(resolve => {
+          Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+            pose: 'celebrating',
+            align: 'center',
+            vAlign: 'center',
+            size: { width: 110, height: 110 },
+            holdMs: 1600,
+            flightMs: 500,
+            holdUntil: audioDone,
+            onArrive: () => withTimeout(Confetti.trigger(), 1900).then(resolve)
+          });
+        });
         Promise.all([confettiDone, audioDone]).then(() => this.pickNewLetter());
       } else {
-        const thinkingGen = Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
-        audioDone.then(() => {
-          Mascot.setIfCurrent(EL.mascotDraw, 'buchstabino', 'idle', thinkingGen);
-          this.pickNewLetter();
+        // Wie bei Game.handleWrong(): 'thinking'-Pose statt 'celebrating',
+        // kein Konfetti - es gibt keine eigene "traurige" Pose (siehe
+        // CLAUDE.md). holdUntil: die "Guter Versuch..."-Nachricht ist
+        // deutlich länger als die anderen Feedback-Sätze, ohne das würde
+        // das Maskottchen oft schon wegfliegen, bevor sie zu Ende ist.
+        Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+          pose: 'thinking',
+          align: 'center',
+          vAlign: 'center',
+          size: { width: 95, height: 95 },
+          holdMs: 1300,
+          flightMs: 450,
+          holdUntil: audioDone
         });
+        audioDone.then(() => this.pickNewLetter());
       }
     }
   },

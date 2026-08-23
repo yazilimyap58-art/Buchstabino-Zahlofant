@@ -19,8 +19,35 @@ export const Game = {
     this.loadState();
     this.bindEvents();
     this.showScreen('category-select');
-    Mascot.greet(EL.mascotCategoryLetters, 'buchstabino');
-    Mascot.greet(EL.mascotCategoryNumbers, 'zahlofant');
+    this.greetCategoryScreen();
+  },
+
+  // Begrüßung auf der Startseite: beide Maskottchen winken SOFORT (rein
+  // visuell, keine Einschränkung), sprechen ihren Satz aber erst beim
+  // ERSTEN Klick/Tap irgendwo auf der Seite. Browser blockieren
+  // speechSynthesis.speak()-Aufrufe ohne vorherige Nutzer-Geste mit einem
+  // "not-allowed"-Fehler (bestätigt per Test) - ein Aufruf direkt bei
+  // init() scheitert also lautlos (die .then()-Fehlerbehandlung fängt
+  // das ab, ohne dass es auffällt: das Maskottchen winkt einfach stumm).
+  // Läuft nur einmal beim App-Start (once:true), nicht bei jeder
+  // Rückkehr zur Kategoriewahl über "Zurück".
+  greetCategoryScreen() {
+    Mascot.set(EL.mascotCategoryLetters, 'buchstabino', 'waving');
+    Mascot.set(EL.mascotCategoryNumbers, 'zahlofant', 'waving');
+
+    const speakGreetings = () => {
+      const speakOne = (imgEl, character, text) => {
+        const gen = Mascot.set(imgEl, character, 'waving');
+        const backToIdle = () => Mascot.setIfCurrent(imgEl, character, 'idle', gen);
+        TTS.speak(text, 'de-DE', {rate: 0.9}).then(backToIdle, backToIdle);
+      };
+      // speechSynthesis spielt beide Sätze automatisch nacheinander ab
+      // (eine gemeinsame Warteschlange pro Tab), deshalb hier keine
+      // explizite Sequenzierung nötig.
+      speakOne(EL.mascotCategoryLetters, 'buchstabino', 'Hallo, ich bin Buchstabino! Lass uns gemeinsam die Buchstaben lernen.');
+      speakOne(EL.mascotCategoryNumbers, 'zahlofant', 'Hallo, ich bin Zahlofant! Zahlen sind mein Spezialgebiet.');
+    };
+    document.addEventListener('pointerdown', speakGreetings, { once: true });
   },
 
   loadState() {
@@ -410,14 +437,30 @@ export const Game = {
     correctBtn.classList.add('correct');
     correctBtn.setAttribute('aria-pressed', 'true');
 
-    // Play confetti + sound in parallel. Beide bekommen ein Timeout-Fallback:
-    // requestAnimationFrame pausiert z.B. komplett wenn der Tab in den
-    // Hintergrund gerät, und speechSynthesis feuert nicht überall "onend" -
-    // ohne Fallback würde das Spiel dann auf "Richtig" hängen bleiben.
+    const character = this.mascotCharacter();
     const isLetterMode = STATE.mode === 'lettersHear' || STATE.mode === 'lettersFind';
-    const confettiDone = withTimeout(Confetti.trigger(), 2500);
+
+    // Große Center-Stage-Feier statt nur eine kleine Kopfzeilen-Pose zu
+    // wechseln: das Maskottchen "kommt herunter" auf die Bühne
+    // (Mascot.flyTo(), größer als die Kopfzeilen-Größe, pose 'celebrating'),
+    // und das Konfetti startet erst, wenn es dort ankommt (onArrive) -
+    // fühlt sich wie EIN Ereignis an statt "Text ändert sich, irgendwo
+    // startet unabhängig davon Konfetti". confettiDone bekommt wie zuvor
+    // ein Timeout-Fallback (requestAnimationFrame pausiert komplett, wenn
+    // der Tab in den Hintergrund gerät).
     const audioDone = withTimeout(TTS.playEffect('correct', STATE.currentTask.answer, isLetterMode), 4000);
-    Mascot.celebrate(EL.mascotGame, this.mascotCharacter());
+    const confettiDone = new Promise(resolve => {
+      Mascot.flyTo(EL.mascotGame, character, EL.motifStage, {
+        pose: 'celebrating',
+        align: 'center',
+        vAlign: 'center',
+        size: { width: 120, height: 120 },
+        holdMs: 1700,
+        flightMs: 550,
+        holdUntil: audioDone,
+        onArrive: () => withTimeout(Confetti.trigger(), 2200).then(resolve)
+      });
+    });
 
     // Update state
     STATE.streak++;
@@ -444,7 +487,23 @@ export const Game = {
     // Play sound
     const isLetterMode = STATE.mode === 'lettersHear' || STATE.mode === 'lettersFind';
     const wrongValue = wrongBtn.dataset.value ?? wrongBtn.textContent;
-    TTS.playEffect('wrong', wrongValue, isLetterMode);
+    const audioDone = TTS.playEffect('wrong', wrongValue, isLetterMode);
+
+    // Wie handleCorrect()'s Feier, aber mit 'thinking'-Pose statt
+    // 'celebrating' und ohne Konfetti - es gibt keine eigene "traurige"
+    // Pose (siehe CLAUDE.md), das nachdenkliche Wippen wirkt aber
+    // aufmunternd genug für "versuch's nochmal". holdUntil sorgt dafür,
+    // dass das Maskottchen mindestens so lange bleibt, wie die Sprach-
+    // ausgabe dauert, statt nach einer geschätzten Festzeit zu verschwinden.
+    Mascot.flyTo(EL.mascotGame, this.mascotCharacter(), EL.motifStage, {
+      pose: 'thinking',
+      align: 'center',
+      vAlign: 'center',
+      size: { width: 100, height: 100 },
+      holdMs: 1300,
+      flightMs: 500,
+      holdUntil: audioDone
+    });
 
     // Remove wrong option (as per spec)
     wrongBtn.disabled = true;
@@ -554,6 +613,10 @@ export const Game = {
     // Menu button (back to mode select of the current category)
     EL.btnMenu.addEventListener('click', () => {
       if (STATE.isPaused) this.togglePause();
+      // Bricht eine evtl. noch laufende Richtig/Falsch-Flugsequenz ab -
+      // sonst bliebe das Kopfzeilen-Maskottchen unsichtbar hängen, bis die
+      // unterbrochene Animation irgendwann von selbst zu Ende läuft.
+      Mascot.cancelFlight(EL.mascotGame);
       const isLetterMode = STATE.mode === 'lettersHear' || STATE.mode === 'lettersFind' || STATE.mode === 'lettersDraw';
       this.showScreen(isLetterMode ? 'letters-mode-select' : 'mode-select');
     });
@@ -562,6 +625,7 @@ export const Game = {
     // screen-game) - Zeichnen gibt es nur unter Buchstaben, deshalb immer
     // zurück zur Buchstaben-Moduswahl, nicht zur allgemeinen Kategoriewahl.
     EL.btnDrawMenu.addEventListener('click', () => {
+      Mascot.cancelFlight(EL.mascotDraw);
       this.showScreen('letters-mode-select');
     });
 
