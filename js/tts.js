@@ -24,13 +24,17 @@ export const TTS = {
   // resolves once the speech has finished playing. `value` ist bei
   // Zahlen-Modi eine Zahl, bei Buchstaben-Modi ein einzelner Buchstabe -
   // deshalb eigene Formulierung statt "Es sind X" (klingt bei Buchstaben falsch).
+  // Bei "wrong" ist `value` der vom Kind ANGEKLICKTE (falsche) Wert, nicht die
+  // richtige Antwort - "Das ist nicht X" wäre dann eine falsche Aussage
+  // (wenn X angeklickt wurde, IST das ja X, nur eben die falsche Antwort).
+  // Deshalb bestätigend formuliert: "Das ist X, aber falsch".
   playEffect(type, value, isLetter = false) {
     // Kein Punkt direkt nach der Zahl: sonst liest die Sprachausgabe sie als Ordinalzahl ("dritter" statt "drei")
     let text;
     if (isLetter) {
-      text = type === 'correct' ? `Richtig! Das ist ${value}` : `Falsch! Das ist nicht ${value}`;
+      text = type === 'correct' ? `Richtig! Das ist ${value}` : `Falsche Antwort! Das ist ${value}`;
     } else {
-      text = type === 'correct' ? `Richtig! Es sind ${value}` : `Falsch! Es sind nicht ${value}`;
+      text = type === 'correct' ? `Richtig! Es sind ${value}` : `Falsche Antwort! Das sind ${value}`;
     }
     return this.speak(text, 'de-DE', {rate: 0.85}).catch(() => {});
   }
