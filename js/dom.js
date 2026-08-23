@@ -8,9 +8,16 @@ export const EL = {
   screenLettersModeSelect: document.getElementById('screen-letters-mode-select'),
   screenGame: document.getElementById('screen-game'),
   screenLetterDraw: document.getElementById('screen-letter-draw'),
+  screenStickerAlbum: document.getElementById('screen-sticker-album'),
   categoryCards: document.querySelectorAll('.category-card'),
   modeCards: document.querySelectorAll('.mode-card[data-mode]'),
   btnsBackToCategories: document.querySelectorAll('.btn-back-category'),
+
+  // Sticker-Album (Belohnungssystem, siehe js/rewardSystem.js)
+  btnStickerAlbum: document.getElementById('btn-sticker-album'),
+  albumLettersGrid: document.getElementById('album-letters-grid'),
+  albumNumbersGrid: document.getElementById('album-numbers-grid'),
+  albumMilestonesGrid: document.getElementById('album-milestones-grid'),
 
   // Mascots
   mascotCategoryLetters: document.getElementById('mascot-category-letters'),

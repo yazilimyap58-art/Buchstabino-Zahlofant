@@ -6,6 +6,7 @@ import { Mascot } from './mascot.js';
 import { Confetti } from './confetti.js';
 import { withTimeout } from './utils.js';
 import { LetterDraw } from './letterDraw.js';
+import { RewardSystem } from './rewardSystem.js';
 
 // Merkt sich pro Session (nicht persistiert), welche Bereiche schon einmal
 // geöffnet wurden, damit die Begrüßungs-Pose nur beim ersten Öffnen läuft.
@@ -73,6 +74,26 @@ export const Game = {
     EL.screenLettersModeSelect.hidden = name !== 'letters-mode-select';
     EL.screenGame.hidden = name !== 'game';
     EL.screenLetterDraw.hidden = name !== 'letter-draw';
+    EL.screenStickerAlbum.hidden = name !== 'sticker-album';
+  },
+
+  // Rendert das Sticker-Album aus RewardSystem.getAlbumView() - rein
+  // lesende Darstellung, keine eigene Spiellogik hier.
+  renderStickerAlbum() {
+    const { letters, numbers, milestones } = RewardSystem.getAlbumView();
+
+    const renderSticker = s => `
+      <div class="sticker ${s.unlocked ? '' : 'sticker--locked'}">
+        <span class="sticker__emoji" aria-hidden="true">${s.unlocked ? (s.display || s.emoji) : '❔'}</span>
+        <span class="sticker__title">${s.unlocked ? s.title : '?'}</span>
+      </div>
+    `;
+
+    EL.albumLettersGrid.innerHTML = letters.map(renderSticker).join('');
+    EL.albumNumbersGrid.innerHTML = numbers.map(renderSticker).join('');
+    EL.albumMilestonesGrid.innerHTML = milestones.length
+      ? milestones.map(renderSticker).join('')
+      : '<p class="sticker-album__empty">Noch keine Meilensteine erreicht – weiterspielen und den ersten Sticker sammeln! 🎉</p>';
   },
 
   // Erste Ebene: Kategoriewahl (Buchstaben/Zahlen)
@@ -462,11 +483,31 @@ export const Game = {
     this.saveState();
     this.updateUI();
 
+    // Belohnungssystem: unabhängig von Streak/totalCorrect (siehe
+    // js/rewardSystem.js) - meldet die validierte richtige Antwort, feiert
+    // per Toast+Herzen jeden dadurch neu freigeschalteten Sticker.
+    // stickersDone sammelt die Feier-Promises (i.d.R. leer) - MUSS mit in
+    // die untenstehende Promise.all(), sonst startet generateTask() (und
+    // damit die nächste Frage inkl. eigener Sprachausgabe) schon während die
+    // Sticker-Feier noch läuft und schneidet sie optisch/akustisch ab.
+    const rewardMeta = Object.assign(
+      { streak: STATE.streak },
+      STATE.mode === 'count'
+        ? { number: STATE.currentTask.answer }
+        : isLetterMode
+          ? { letter: STATE.currentTask.answer }
+          : {}
+    );
+    const stickersDone = Promise.all(
+      RewardSystem.recordCorrect(STATE.mode, rewardMeta).map(sticker => RewardSystem.trigger('sticker', sticker))
+    );
+
     // Show brief feedback
     this.showFeedback('Richtig! 🎉', 'correct');
 
-    // Erst zur nächsten Aufgabe wechseln, wenn Audio UND Konfetti fertig sind
-    Promise.all([confettiDone, audioDone]).then(() => {
+    // Erst zur nächsten Aufgabe wechseln, wenn Audio, Konfetti UND eine
+    // evtl. laufende Sticker-Feier fertig sind.
+    Promise.all([confettiDone, audioDone, stickersDone]).then(() => {
       this.generateTask();
     });
   },
@@ -579,6 +620,12 @@ export const Game = {
       btn.addEventListener('click', () => {
         this.showScreen('category-select');
       });
+    });
+
+    // Sticker-Album öffnen (Belohnungssystem, siehe js/rewardSystem.js)
+    EL.btnStickerAlbum.addEventListener('click', () => {
+      this.renderStickerAlbum();
+      this.showScreen('sticker-album');
     });
 
     // Mode selection

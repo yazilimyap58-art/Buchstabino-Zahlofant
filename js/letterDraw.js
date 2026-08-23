@@ -6,6 +6,7 @@ import { Confetti } from './confetti.js';
 import { withTimeout } from './utils.js';
 import { Game } from './game.js';
 import { LETTER_PATHS, LETTER_PATH_BOX } from './letterPaths.js';
+import { RewardSystem } from './rewardSystem.js';
 
 /* ----------------------------
    Buchstaben zeichnen (Nachfahren + Freihand)
@@ -422,6 +423,14 @@ export const LetterDraw = {
         STATE.streak++;
         STATE.totalCorrect++;
         Game.saveState();
+        // stickersDone MUSS mit in die untenstehende Promise.all(), sonst
+        // startet beginFreehandPhase() schon während eine evtl. laufende
+        // Sticker-Feier (Toast+Herzen+große Maskottchen-Pose) noch läuft
+        // (siehe RewardSystem.trigger()).
+        const stickersDone = Promise.all(
+          RewardSystem.recordCorrect('lettersDraw', { streak: STATE.streak, letter: this.currentLetter.lower })
+            .map(sticker => RewardSystem.trigger('sticker', sticker))
+        );
         // Große Center-Stage-Feier wie bei den anderen Modi (siehe
         // Game.handleCorrect()): Maskottchen kommt auf die Zeichenfläche
         // herunter, Konfetti startet erst beim Ankommen (onArrive).
@@ -438,7 +447,7 @@ export const LetterDraw = {
             onArrive: () => withTimeout(Confetti.trigger(), 2100).then(resolve)
           });
         });
-        Promise.all([confettiDone, audioDone]).then(() => this.beginFreehandPhase());
+        Promise.all([confettiDone, audioDone, stickersDone]).then(() => this.beginFreehandPhase());
       } else {
         // Hartes "erneut versuchen" statt Weiterschalten: unter 75%
         // nachgefahrener Linie (oder zu viel Tinte ausserhalb des Bands)
@@ -476,6 +485,10 @@ export const LetterDraw = {
         STATE.streak++;
         STATE.totalCorrect++;
         Game.saveState();
+        const stickersDone = Promise.all(
+          RewardSystem.recordCorrect('lettersDraw', { streak: STATE.streak, letter: this.currentLetter.lower })
+            .map(sticker => RewardSystem.trigger('sticker', sticker))
+        );
         const confettiDone = new Promise(resolve => {
           Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
             pose: 'celebrating',
@@ -488,7 +501,7 @@ export const LetterDraw = {
             onArrive: () => withTimeout(Confetti.trigger(), 1900).then(resolve)
           });
         });
-        Promise.all([confettiDone, audioDone]).then(() => this.pickNewLetter());
+        Promise.all([confettiDone, audioDone, stickersDone]).then(() => this.pickNewLetter());
       } else {
         // Wie bei Game.handleWrong(): 'thinking'-Pose statt 'celebrating',
         // kein Konfetti - es gibt keine eigene "traurige" Pose (siehe

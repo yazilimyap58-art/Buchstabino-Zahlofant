@@ -8,6 +8,7 @@ import { TTS } from './js/tts.js';
 import { Confetti } from './js/confetti.js';
 import { Game } from './js/game.js';
 import { LetterDraw } from './js/letterDraw.js';
+import { RewardSystem } from './js/rewardSystem.js';
 
 /* ----------------------------
    Initialization
@@ -27,6 +28,7 @@ function initGame() {
   window.Confetti = Confetti;
   window.TTS = TTS;
   window.LetterDraw = LetterDraw;
+  window.RewardSystem = RewardSystem;
 }
 
 // Start when DOM loaded
