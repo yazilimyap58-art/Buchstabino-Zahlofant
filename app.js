@@ -1098,14 +1098,34 @@ const LetterDraw = {
         });
       }
     } else {
-      Mascot.celebrate(EL.mascotDraw, 'buchstabino');
-      const confettiDone = withTimeout(Confetti.trigger(), 2000);
-      const audioDone = withTimeout(TTS.speak('Toll gemalt!', 'de-DE', {rate: 0.9}), 2500);
-      Promise.all([confettiDone, audioDone]).then(() => this.pickNewLetter());
+      // Freihand zeigt keine Führungslinie, aber sie steht (nur unsichtbar)
+      // weiterhin auf dem Guide-Canvas - wird für eine echte, wenn auch
+      // grosszügigere Prüfung wiederverwendet. Ohne das würde diese Phase
+      // JEDE Eingabe (auch eine leere Fläche) unterschiedslos als "Toll
+      // gemalt!" feiern, was genau der gemeldete Bug war.
+      const score = this.scoreDrawing();
+      const passed = score >= this.freehandPassScore;
+      const audioDone = withTimeout(
+        TTS.speak(passed ? 'Toll gemalt!' : 'Versuch mal, dich genau an die Form zu erinnern!', 'de-DE', {rate: 0.9}),
+        2500
+      );
+
+      if (passed) {
+        Mascot.celebrate(EL.mascotDraw, 'buchstabino');
+        const confettiDone = withTimeout(Confetti.trigger(), 2000);
+        Promise.all([confettiDone, audioDone]).then(() => this.pickNewLetter());
+      } else {
+        Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
+        audioDone.then(() => {
+          Mascot.set(EL.mascotDraw, 'buchstabino', 'idle');
+          this.pickNewLetter();
+        });
+      }
     }
   },
 
-  passScore: 0.5, // ab hier gilt der Versuch als "getroffen" (Konfetti/Feiern)
+  passScore: 0.5, // ab hier gilt der geführte Versuch als "getroffen" (Konfetti/Feiern)
+  freehandPassScore: 0.22, // niedrigere Schwelle: ohne sichtbare Linie ist Treffen viel schwerer
 
   praiseFor(score) {
     if (score >= 0.75) return 'Super gemacht!';
