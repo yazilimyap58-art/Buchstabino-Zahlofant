@@ -743,6 +743,29 @@ body {
   display: none;
 }
 
+/* Abdunkel-Scrim hinter der Center-Stage-Feier (Richtig/Falsch, siehe
+   Mascot.flyTo()'s isCelebration-Fall) - holt Maskottchen/Konfetti/Herzen
+   sichtbar nach vorne, statt dass sie auf dem normalen hellen
+   Spielhintergrund untergehen. Unter .mascot-flyer (z-index 500) im
+   Stapelkontext, damit das Maskottchen selbst darüber bleibt. */
+.mascot-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 480;
+  background: rgba(15, 23, 42, 0.55);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.mascot-backdrop--visible {
+  opacity: 1;
+}
+
+.mascot-backdrop[hidden] {
+  display: none;
+}
+
 /* Jede Pose hat ihre eigene Loop-Animation. Neue Posen (z.B. "retry")
    funktionieren automatisch mit sanftem Bob, solange keine eigene Regel
    ergänzt wird - hier bewusst optional gehalten, nicht Pflicht. */
@@ -1079,6 +1102,16 @@ body {
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  /* Eigener Abdunkel-Hintergrund (wie .mascot-backdrop, aber lokal am Toast
+     statt am allgemeinen Mascot-Modul, da der Sticker-Toast nicht über
+     Mascot.flyTo() fliegt, sondern an Ort und Stelle einblendet) - holt
+     Maskottchen/Herzen/Text sichtbar nach vorne. */
+  background: rgba(15, 23, 42, 0);
+  transition: background 0.35s ease;
+}
+
+.sticker-toast--visible {
+  background: rgba(15, 23, 42, 0.55);
 }
 
 .sticker-toast[hidden] {
