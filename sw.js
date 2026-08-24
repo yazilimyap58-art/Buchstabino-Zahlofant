@@ -1,14 +1,14 @@
 // Service Worker für PWA-Offline-Fähigkeit
 // Cacht die wichtigsten Assets, damit das Spiel auch ohne Internet funktioniert
 
-const CACHE_NAME = 'buchstabino-zahlofant-v6';
+const CACHE_NAME = 'buchstabino-zahlofant-v5';
 const MASCOT_BASE = '/assets/mascots/buchstabino_zahlofant_assets/svg/';
 const MASCOT_POSES = ['idle', 'waving', 'thinking', 'celebrating'];
 const MASCOT_ASSETS = ['buchstabino', 'zahlofant'].flatMap(
   character => MASCOT_POSES.map(pose => `${MASCOT_BASE}${character}_${pose}.svg`)
 );
 const JS_MODULES = [
-  'utils', 'config', 'state', 'dom', 'tts', 'mascot', 'confetti', 'letterDraw', 'game', 'rewardSystem'
+  'utils', 'config', 'state', 'dom', 'tts', 'mascot', 'confetti', 'letterDraw', 'game'
 ].map(name => `/js/${name}.js`);
 // Audio-Baustein-Keys für die ElevenLabs-TTS (siehe js/tts.js + scripts/tts-texts.mjs).
 // MUSS mit den dort erzeugten Keys übereinstimmen - beim Ändern des

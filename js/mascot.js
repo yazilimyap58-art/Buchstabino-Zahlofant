@@ -175,18 +175,8 @@ export const Mascot = {
       flyer.style.top = `${targetTop}px`;
     });
 
-    // "Große Feier" (Richtig/Falsch-Center-Stage, siehe Game.handleCorrect()/
-    // handleWrong()/LetterDraw) erkennbar an align+vAlign beide 'center' -
-    // im Unterschied zur Hilfe-Funktion (align 'hand', vAlign 'below'), die
-    // nur auf ein Element zeigt und den Hintergrund nicht abdunkeln soll.
-    // Nur für diesen Fall blendet sich beim Ankommen ein Hintergrund-Scrim
-    // ein, der das Maskottchen optisch nach vorne holt (siehe
-    // _showBackdrop()/_hideBackdrop()), und beim Rückflug wieder aus.
-    const isCelebration = align === 'center' && vAlign === 'center';
-
     const flyBack = () => {
       if (!stillCurrent()) return;
-      if (isCelebration) this._hideBackdrop();
       flyer.style.left = `${startCenterX - w / 2}px`;
       flyer.style.top = `${startCenterY - h / 2}px`;
       setTimeout(() => {
@@ -199,7 +189,6 @@ export const Mascot = {
 
     setTimeout(() => {
       if (!stillCurrent()) return;
-      if (isCelebration) this._showBackdrop();
       if (onArrive) onArrive();
 
       const minHold = new Promise(resolve => setTimeout(resolve, holdMs));
@@ -209,36 +198,6 @@ export const Mascot = {
       // sonst bliebe das Maskottchen für immer auf der Bühne stehen.
       Promise.race([settled, new Promise(resolve => setTimeout(resolve, holdMs + 4000))]).then(flyBack);
     }, flightMs);
-  },
-
-  // Lazy erzeugtes, geteiltes Abdunkel-Element hinter dem Flyer (unter
-  // #mascot-flyer im z-index, siehe style.css) - holt die Center-Stage-
-  // Feier optisch nach vorne, statt dass Maskottchen/Konfetti/Herzen einfach
-  // auf dem normalen (hellen) Spielhintergrund schweben.
-  _ensureBackdrop() {
-    let bd = document.getElementById('mascot-backdrop');
-    if (bd) return bd;
-    bd = document.createElement('div');
-    bd.id = 'mascot-backdrop';
-    bd.className = 'mascot-backdrop';
-    bd.hidden = true;
-    bd.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(bd);
-    return bd;
-  },
-
-  _showBackdrop() {
-    const bd = this._ensureBackdrop();
-    bd.hidden = false;
-    bd.getBoundingClientRect(); // Reflow erzwingen, sonst greift die Transition nicht
-    bd.classList.add('mascot-backdrop--visible');
-  },
-
-  _hideBackdrop() {
-    const bd = document.getElementById('mascot-backdrop');
-    if (!bd) return;
-    bd.classList.remove('mascot-backdrop--visible');
-    setTimeout(() => { bd.hidden = true; }, 350);
   },
 
   // Bricht eine laufende flyTo()-Animation für `sourceImgEl` sofort ab und
@@ -253,9 +212,5 @@ export const Mascot = {
     sourceImgEl.style.visibility = '';
     const flyer = document.getElementById('mascot-flyer');
     if (flyer) flyer.hidden = true;
-    // Falls die abgebrochene Animation eine Center-Stage-Feier war, sonst
-    // bliebe der Hintergrund-Scrim (siehe _showBackdrop()) dauerhaft dunkel
-    // hängen, obwohl kein Maskottchen mehr sichtbar ist.
-    this._hideBackdrop();
   }
 };
