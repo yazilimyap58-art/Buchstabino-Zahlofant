@@ -14,7 +14,7 @@
 export const REWARD_SCHEMA_VERSION = 1;
 const STORAGE_KEY = 'buchstabinoZahlofantRewards';
 
-const REWARD_MODES = ['count', 'arithmetic', 'lettersHear', 'lettersFind', 'lettersDraw'];
+const REWARD_MODES = ['count', 'arithmetic', 'lettersHear', 'lettersFind', 'lettersDraw', 'numbersDraw'];
 
 function defaultRewards() {
   const milestonesReached = {};

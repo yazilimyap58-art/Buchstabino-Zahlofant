@@ -8,7 +8,7 @@ import { TTS } from './js/tts.js';
 import { Confetti } from './js/confetti.js';
 import { Celebration } from './js/celebration.js';
 import { Game } from './js/game.js';
-import { LetterDraw } from './js/letterDraw.js';
+import { TraceDraw } from './js/traceDraw.js';
 import { RewardUI } from './js/rewardUI.js';
 import { initLayoutChrome } from './js/layoutChrome.js';
 
@@ -22,7 +22,7 @@ function initGame() {
 
   // Initialize game
   Game.init();
-  LetterDraw.init();
+  TraceDraw.init();
   RewardUI.init();
   initLayoutChrome();
 
@@ -32,7 +32,7 @@ function initGame() {
   window.Config = CONFIG;
   window.Confetti = Confetti;
   window.TTS = TTS;
-  window.LetterDraw = LetterDraw;
+  window.TraceDraw = TraceDraw;
   window.RewardUI = RewardUI;
 }
 

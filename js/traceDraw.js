@@ -6,11 +6,71 @@ import { withTimeout } from './utils.js';
 import { Game } from './game.js';
 import { RewardSystem } from './rewardSystem.js';
 import { LETTER_PATHS, LETTER_PATH_BOX } from './letterPaths.js';
+import { NUMBER_PATHS, NUMBER_PATH_BOX } from './numberPaths.js';
 
 /* ----------------------------
-   Buchstaben zeichnen (Nachfahren + Freihand)
-   ---------------------------- */
-export const LetterDraw = {
+   Nachfahren-Engine (Buchstaben + Zahlen, Nachfahren + Freihand)
+   ----------------------------
+   Generalisiert aus dem ursprünglichen, buchstaben-spezifischen
+   js/letterDraw.js: die komplette Canvas-/Scoring-Logik (Pfad-
+   Transformation, Bewertungs-Maske, Coverage/Overflow, Hilfe-Animation)
+   hängt an keiner Stelle davon ab, ob ein Buchstabe oder eine Ziffer
+   nachgefahren wird - nur die Pfaddaten, das Maskottchen und ein paar
+   Texte/TTS-Keys unterscheiden sich. Diese Unterschiede stecken in
+   MODE_CONFIGS; alles andere bleibt ein einziges, geteiltes Modul statt
+   zwei fast identischer Kopien. */
+const MODE_CONFIGS = {
+  lettersDraw: {
+    character: 'buchstabino',
+    pathData: LETTER_PATHS,
+    pathBox: LETTER_PATH_BOX,
+    repeatAriaLabel: 'Buchstabe wiederholen',
+    helpAriaLabel: 'Hilfe: Buchstabe vorzeichnen',
+    // Zwei Fälle (Groß/Klein) pro Runde, wie im ursprünglichen letterDraw.js -
+    // Fall wird bei jedem neuen Buchstaben neu gewürfelt.
+    pickItem() {
+      const letter = Game.pickRandomLetters(1)[0];
+      const kase = Math.random() < 0.5 ? 'upper' : 'lower';
+      return { key: letter[kase], display: letter[kase] };
+    },
+    traceQuestion: display => `Fahre den Buchstaben „${display}“ nach`,
+    freehandQuestion: display => `Male den Buchstaben „${display}“ frei, ohne Hilfslinie`,
+    speak: item => TTS.speak([TTS.letterKey(item.key), 'glue_wie', TTS.wordKey(item.key)]),
+    messageKeys: {
+      success: 'fixed_draw_success',
+      retryOverflow: 'fixed_draw_retry_overflow',
+      retryCoverage: 'fixed_draw_retry_coverage',
+      freehandPass: 'fixed_draw_freehand_pass',
+      freehandFail: 'fixed_draw_freehand_fail'
+    }
+  },
+  numbersDraw: {
+    character: 'zahlofant',
+    pathData: NUMBER_PATHS,
+    pathBox: NUMBER_PATH_BOX,
+    repeatAriaLabel: 'Zahl wiederholen',
+    helpAriaLabel: 'Hilfe: Zahl vorzeichnen',
+    // Einstellige Zahlen (0-9), symmetrisch zu "ein Buchstabe" bei
+    // lettersDraw - mehrstellige Zahlen bräuchten mehrere nebeneinander
+    // positionierte Ziffern-Pfade und sind hier bewusst nicht abgedeckt.
+    pickItem() {
+      const digit = String(Math.floor(Math.random() * 10));
+      return { key: digit, display: digit };
+    },
+    traceQuestion: display => `Fahre die Zahl „${display}“ nach`,
+    freehandQuestion: display => `Male die Zahl „${display}“ frei, ohne Hilfslinie`,
+    speak: item => TTS.speak([TTS.numberKey(Number(item.key))]),
+    messageKeys: {
+      success: 'fixed_draw_success_zahlofant',
+      retryOverflow: 'fixed_draw_retry_overflow_zahlofant',
+      retryCoverage: 'fixed_draw_retry_coverage_zahlofant',
+      freehandPass: 'fixed_draw_freehand_pass_zahlofant',
+      freehandFail: 'fixed_draw_freehand_fail_zahlofant'
+    }
+  }
+};
+
+export const TraceDraw = {
   guideCtx: null,
   inkCtx: null,
   maskCanvas: null, // unsichtbares Offscreen-Canvas: enthält das Linienband für die Bewertung
@@ -19,8 +79,9 @@ export const LetterDraw = {
   height: 0,
   isDrawing: false,
   lastPoint: null,
-  currentLetter: null,
-  currentCase: 'upper',
+  modeId: null,
+  modeConfig: null,
+  currentItem: null, // { key, display } - key indiziert MODE_CONFIGS[...].pathData, display ist der Anzeige-/Sprachtext
   phase: 'guided', // 'guided' | 'freehand'
 
   // Nachfahren: harte Schwelle - unter 75% Abdeckung des Linienbands (siehe
@@ -56,7 +117,7 @@ export const LetterDraw = {
     EL.btnDrawRepeat.addEventListener('click', () => {
       if (EL.btnDrawRepeat.disabled) return;
       EL.btnDrawRepeat.disabled = true;
-      this.speakLetter().finally(() => { EL.btnDrawRepeat.disabled = false; });
+      this.speakItem().finally(() => { EL.btnDrawRepeat.disabled = false; });
     });
     EL.btnDrawHelp.addEventListener('click', () => this.showHelp());
     EL.btnDrawNext.addEventListener('click', () => this.handleNext());
@@ -75,20 +136,31 @@ export const LetterDraw = {
     this.guideCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     this.inkCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     this.maskCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-    if (this.currentLetter) {
+    if (this.currentItem) {
       this.drawMask();
       if (this.phase === 'guided') this.drawGuide();
     }
   },
 
-  start() {
+  // modeId: 'lettersDraw' | 'numbersDraw' - wählt die MODE_CONFIGS-Konfiguration
+  // (Pfaddaten, Maskottchen-Charakter, Texte/TTS-Keys) für die ganze Runde.
+  start(modeId) {
+    this.modeId = modeId;
+    this.modeConfig = MODE_CONFIGS[modeId];
+    // Ein evtl. noch gesetztes currentItem stammt vom vorigen Modus (z.B.
+    // eine Ziffer aus numbersDraw) und existiert nicht in den Pfaddaten des
+    // neuen Modus - resize() (unten) würde sonst sofort drawMask()/
+    // buildItemPath() mit einem ungültigen Key aufrufen und crashen, bevor
+    // pickNewItem() überhaupt ein neues, gültiges currentItem gesetzt hat.
+    this.currentItem = null;
+    EL.btnDrawRepeat.setAttribute('aria-label', this.modeConfig.repeatAriaLabel);
+    EL.btnDrawHelp.setAttribute('aria-label', this.modeConfig.helpAriaLabel);
     this.resize();
-    this.pickNewLetter();
+    this.pickNewItem();
   },
 
-  pickNewLetter() {
-    this.currentLetter = Game.pickRandomLetters(1)[0];
-    this.currentCase = Math.random() < 0.5 ? 'upper' : 'lower';
+  pickNewItem() {
+    this.currentItem = this.modeConfig.pickItem();
     this.beginGuidedPhase();
   },
 
@@ -98,11 +170,11 @@ export const LetterDraw = {
     EL.drawGuideCanvas.hidden = false;
     EL.drawStars.hidden = true;
     EL.btnDrawNext.textContent = 'Fertig ✓';
-    EL.drawQuestion.textContent = `Fahre den Buchstaben „${this.currentLetter[this.currentCase]}“ nach`;
+    EL.drawQuestion.textContent = this.modeConfig.traceQuestion(this.currentItem.display);
     this.clearInk();
     this.drawMask();
     this.drawGuide();
-    this.speakLetter();
+    this.speakItem();
   },
 
   beginFreehandPhase() {
@@ -111,22 +183,24 @@ export const LetterDraw = {
     EL.drawGuideCanvas.hidden = true;
     EL.drawStars.hidden = true;
     EL.btnDrawNext.textContent = 'Weiter ▶';
-    EL.drawQuestion.textContent = `Male den Buchstaben „${this.currentLetter[this.currentCase]}“ frei, ohne Hilfslinie`;
+    EL.drawQuestion.textContent = this.modeConfig.freehandQuestion(this.currentItem.display);
     this.clearInk();
   },
 
-  // Skaliert/zentriert die feste Koordinatenbox aus letterPaths.js
-  // (LETTER_PATH_BOX) gleichmäßig in die verfügbare Zeichenfläche - dieselbe
-  // Transformation wird für Guide, Bewertungs-Maske und (indirekt) für die
-  // Pfeilspitzen benutzt, damit immer alles exakt übereinander liegt.
-  letterTransform() {
+  // Skaliert/zentriert die feste Koordinatenbox der aktiven Pfaddaten
+  // (modeConfig.pathBox - LETTER_PATH_BOX oder NUMBER_PATH_BOX) gleichmäßig
+  // in die verfügbare Zeichenfläche - dieselbe Transformation wird für
+  // Guide, Bewertungs-Maske und (indirekt) für die Pfeilspitzen benutzt,
+  // damit immer alles exakt übereinander liegt.
+  pathTransform() {
     const marginFactor = 0.78;
+    const box = this.modeConfig.pathBox;
     const scale = Math.min(
-      (this.width * marginFactor) / LETTER_PATH_BOX.width,
-      (this.height * marginFactor) / LETTER_PATH_BOX.height
+      (this.width * marginFactor) / box.width,
+      (this.height * marginFactor) / box.height
     );
-    const offsetX = (this.width - LETTER_PATH_BOX.width * scale) / 2;
-    const offsetY = (this.height - LETTER_PATH_BOX.height * scale) / 2;
+    const offsetX = (this.width - box.width * scale) / 2;
+    const offsetY = (this.height - box.height * scale) / 2;
     return { scale, offsetX, offsetY };
   },
 
@@ -146,15 +220,15 @@ export const LetterDraw = {
     return this.maskBandWidth(t) * 0.8;
   },
 
-  // Baut aus den Pfaddaten des aktuellen Buchstabens (letterPaths.js) ein
-  // Path2D in Bildschirmkoordinaten, plus für jeden Strich Start- und
-  // Endpunkt der letzten Teilstrecke (für die Pfeilspitze, siehe
-  // drawArrowhead()). Wird sowohl für den sichtbaren Guide als auch für
-  // die unsichtbare Bewertungs-Maske benutzt, damit beide exakt übereinstimmen.
-  buildLetterPath() {
-    const letterKey = this.currentLetter[this.currentCase];
-    const data = LETTER_PATHS[letterKey];
-    const t = this.letterTransform();
+  // Baut aus den Pfaddaten des aktuellen Zeichens (Buchstabe oder Ziffer,
+  // siehe modeConfig.pathData) ein Path2D in Bildschirmkoordinaten, plus
+  // für jeden Strich Start- und Endpunkt der letzten Teilstrecke (für die
+  // Pfeilspitze, siehe drawArrowhead()). Wird sowohl für den sichtbaren
+  // Guide als auch für die unsichtbare Bewertungs-Maske benutzt, damit
+  // beide exakt übereinstimmen.
+  buildItemPath() {
+    const data = this.modeConfig.pathData[this.currentItem.key];
+    const t = this.pathTransform();
     const path = new Path2D();
     const arrows = [];
 
@@ -190,13 +264,12 @@ export const LetterDraw = {
   },
 
   // Läuft für die Hilfe-Marker-Animation (showHelp()): Punkte entlang aller
-  // Striche des aktuellen Buchstabens sampeln, als diskrete Punktfolge statt
+  // Striche des aktuellen Zeichens sampeln, als diskrete Punktfolge statt
   // Path2D (Path2D erlaubt keine Positions-Abfrage entlang des Pfads) -
-  // dieselben M/L/Q-Segmente wie buildLetterPath(), nur feiner aufgelöst.
+  // dieselben M/L/Q-Segmente wie buildItemPath(), nur feiner aufgelöst.
   sampleStrokePoints(stepsPerSegment = 18) {
-    const letterKey = this.currentLetter[this.currentCase];
-    const data = LETTER_PATHS[letterKey];
-    const t = this.letterTransform();
+    const data = this.modeConfig.pathData[this.currentItem.key];
+    const t = this.pathTransform();
     const strokesPoints = [];
 
     for (const stroke of data.strokes) {
@@ -247,7 +320,7 @@ export const LetterDraw = {
   },
 
   // Hilfe-Funktion: das Maskottchen fliegt von der Kopfzeile zum Startpunkt
-  // des Buchstaben-Pfads (siehe Mascot.flyTo() - dort gibt es keinen echten
+  // des Zeichen-Pfads (siehe Mascot.flyTo() - dort gibt es keinen echten
   // Options-Button wie in den anderen Modi, daher ein kleines Ziel-Rechteck
   // statt eines DOM-Elements) und ein Punkt fährt einmal den Pfad ab
   // (dieselben Daten wie der Guide - siehe sampleStrokePoints()). Zeigt
@@ -255,13 +328,13 @@ export const LetterDraw = {
   // vorgeführt, für Kinder, die trotz Linie/Pfeilen nicht wissen, wo/wie
   // sie anfangen sollen.
   showHelp() {
-    if (STATE.isPaused || !this.currentLetter) return;
+    if (STATE.isPaused || !this.currentItem) return;
 
     // Token statt reiner Boolean-Flag: eine laufende Animation muss sich
-    // selbst abbrechen können, sobald pickNewLetter()/beginGuidedPhase()/
+    // selbst abbrechen können, sobald pickNewItem()/beginGuidedPhase()/
     // beginFreehandPhase() (via cancelHelp()) oder ein erneuter Hilfe-Klick
     // sie ungültig gemacht hat - sonst würde eine alte rAF-Schleife nach
-    // einem Buchstabenwechsel weiterlaufen und den Marker falsch positionieren.
+    // einem Zeichenwechsel weiterlaufen und den Marker falsch positionieren.
     this.helpToken = (this.helpToken || 0) + 1;
     const token = this.helpToken;
 
@@ -295,7 +368,7 @@ export const LetterDraw = {
     // gleichzeitig loslaufen zu lassen (wirkte davor so, als würde der Punkt
     // dem noch ankommenden Maskottchen davonrennen).
     const flightMs = 700;
-    Mascot.flyTo(EL.mascotDraw, 'buchstabino', startTargetRect, { holdMs: durationMs, align: 'point', flightMs });
+    Mascot.flyTo(EL.mascotDraw, this.modeConfig.character, startTargetRect, { holdMs: durationMs, align: 'point', flightMs });
     EL.drawHelpMarker.hidden = false;
     // Punkt schon sichtbar auf den Startpixel setzen, aber noch nicht
     // bewegen (startTime bleibt null, bis der verzögerte Loop unten
@@ -324,7 +397,7 @@ export const LetterDraw = {
     }, flightMs);
   },
 
-  // Bricht eine laufende Hilfe-Marker-Animation ab (neuer Buchstabe, neue
+  // Bricht eine laufende Hilfe-Marker-Animation ab (neues Zeichen, neue
   // Phase, Resize) - siehe Token-Erklärung in showHelp().
   cancelHelp() {
     this.helpToken = (this.helpToken || 0) + 1;
@@ -332,7 +405,7 @@ export const LetterDraw = {
   },
 
   drawArrowhead(ctx, from, to) {
-    const t = this.letterTransform();
+    const t = this.pathTransform();
     const size = Math.max(8, t.scale * 4.5);
     const angle = Math.atan2(to.y - from.y, to.x - from.x);
     ctx.save();
@@ -351,18 +424,18 @@ export const LetterDraw = {
 
   // Anzeige: strichlierte Linie entlang des Pfads, den das Kind nachfahren
   // soll, plus eine Pfeilspitze am Ende jedes Strichs, die die
-  // Schreibrichtung zeigt. Kein Systemschrift-Umriss mehr (siehe Gotchas in
-  // CLAUDE.md) - die Pfaddaten aus letterPaths.js sind eine vereinfachte
-  // "Handschrift-Mittellinie" durch den Buchstaben.
+  // Schreibrichtung zeigt. Kein Systemschrift-Umriss (siehe Gotchas in
+  // CLAUDE.md) - die Pfaddaten aus letterPaths.js/numberPaths.js sind eine
+  // vereinfachte "Handschrift-Mittellinie" durch das Zeichen.
   drawGuide() {
     const ctx = this.guideCtx;
-    const { path, arrows } = this.buildLetterPath();
+    const { path, arrows } = this.buildItemPath();
     ctx.clearRect(0, 0, this.width, this.height);
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.setLineDash([14, 10]);
-    ctx.lineWidth = Math.max(4, this.letterTransform().scale * 2.2);
+    ctx.lineWidth = Math.max(4, this.pathTransform().scale * 2.2);
     ctx.strokeStyle = 'rgba(100, 116, 139, 0.75)';
     ctx.stroke(path);
     ctx.setLineDash([]);
@@ -374,15 +447,15 @@ export const LetterDraw = {
   // Band (maskBandWidth()) auf einem unsichtbaren Offscreen-Canvas - das
   // ist die Grundlage für "wie viel % der Linie wurde nachgefahren?" in
   // scoreDrawing(). Bleibt für beide Phasen (Nachfahren + Freihand)
-  // desselben Buchstabens erhalten, siehe beginFreehandPhase().
+  // desselben Zeichens erhalten, siehe beginFreehandPhase().
   drawMask() {
     const ctx = this.maskCtx;
-    const { path } = this.buildLetterPath();
+    const { path } = this.buildItemPath();
     ctx.clearRect(0, 0, this.width, this.height);
     ctx.save();
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = this.maskBandWidth(this.letterTransform());
+    ctx.lineWidth = this.maskBandWidth(this.pathTransform());
     ctx.strokeStyle = '#000';
     ctx.stroke(path);
     ctx.restore();
@@ -392,14 +465,14 @@ export const LetterDraw = {
     this.inkCtx.clearRect(0, 0, this.width, this.height);
   },
 
-  speakLetter() {
+  speakItem() {
     // setIfCurrent() statt set(): falls währenddessen Hilfe getippt wurde
     // (Mascot.flyTo()), soll dieser verzögerte Callback die neuere Pose
     // nicht überschreiben (siehe Mascot.setIfCurrent()).
-    const thinkingGen = Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
-    const resetIdle = () => Mascot.setIfCurrent(EL.mascotDraw, 'buchstabino', 'idle', thinkingGen);
-    return TTS.speak([TTS.letterKey(this.currentLetter.lower), 'glue_wie', TTS.wordKey(this.currentLetter.lower)])
-      .then(resetIdle, resetIdle);
+    const character = this.modeConfig.character;
+    const thinkingGen = Mascot.set(EL.mascotDraw, character, 'thinking');
+    const resetIdle = () => Mascot.setIfCurrent(EL.mascotDraw, character, 'idle', thinkingGen);
+    return this.modeConfig.speak(this.currentItem).then(resetIdle, resetIdle);
   },
 
   getPoint(event) {
@@ -421,7 +494,7 @@ export const LetterDraw = {
     const point = this.getPoint(event);
     const ctx = this.inkCtx;
     ctx.strokeStyle = '#4ade80';
-    ctx.lineWidth = this.inkWidth(this.letterTransform());
+    ctx.lineWidth = this.inkWidth(this.pathTransform());
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -437,6 +510,9 @@ export const LetterDraw = {
   },
 
   handleNext() {
+    const character = this.modeConfig.character;
+    const messageKeys = this.modeConfig.messageKeys;
+
     if (this.phase === 'guided') {
       const { coverage, overflowRatio } = this.scoreDrawing();
       const passed = coverage >= this.guidedPassScore && overflowRatio <= this.maxOverflowRatio;
@@ -451,14 +527,14 @@ export const LetterDraw = {
         // Wie bei Game.handleCorrect(): RewardSystem entscheidet, ob dieser
         // Streak einen Meilenstein trifft, danach GENAU EIN Maskottchen-
         // Auftritt (cheer() oder gesteigert celebrate(level)).
-        const audioDone = withTimeout(TTS.speak(['fixed_draw_success']), 3000);
-        const result = RewardSystem.recordCorrect('lettersDraw');
+        const audioDone = withTimeout(TTS.speak([messageKeys.success]), 3000);
+        const result = RewardSystem.recordCorrect(this.modeId);
         const effectsDone = result.milestoneLevel
-          ? Mascot.celebrate(result.milestoneLevel, EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+          ? Mascot.celebrate(result.milestoneLevel, EL.mascotDraw, character, EL.drawInkCanvas, {
               size: { width: 110, height: 110 },
               holdUntil: audioDone
             })
-          : Mascot.cheer(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+          : Mascot.cheer(EL.mascotDraw, character, EL.drawInkCanvas, {
               size: { width: 110, height: 110 },
               holdUntil: audioDone
             });
@@ -468,11 +544,11 @@ export const LetterDraw = {
         // nachgefahrener Linie (oder zu viel Tinte ausserhalb des Bands)
         // gilt "Fertig" nicht. Die Zeichnung bleibt erhalten, damit einfach
         // weiter nachgefahren werden kann, statt von vorne anfangen zu müssen.
-        const thinkingGen = Mascot.set(EL.mascotDraw, 'buchstabino', 'thinking');
+        const thinkingGen = Mascot.set(EL.mascotDraw, character, 'thinking');
         const messageKey = overflowRatio > this.maxOverflowRatio
-          ? 'fixed_draw_retry_overflow'
-          : 'fixed_draw_retry_coverage';
-        const backToIdle = () => Mascot.setIfCurrent(EL.mascotDraw, 'buchstabino', 'idle', thinkingGen);
+          ? messageKeys.retryOverflow
+          : messageKeys.retryCoverage;
+        const backToIdle = () => Mascot.setIfCurrent(EL.mascotDraw, character, 'idle', thinkingGen);
         TTS.speak([messageKey]).then(backToIdle, backToIdle);
       }
     } else {
@@ -488,7 +564,7 @@ export const LetterDraw = {
       const { coverage, overflowRatio } = this.scoreDrawing();
       const passed = coverage >= this.freehandPassScore && overflowRatio <= this.maxOverflowRatio + 0.1;
       const audioDone = withTimeout(
-        TTS.speak([passed ? 'fixed_draw_freehand_pass' : 'fixed_draw_freehand_fail']),
+        TTS.speak([passed ? messageKeys.freehandPass : messageKeys.freehandFail]),
         3000
       );
 
@@ -500,17 +576,17 @@ export const LetterDraw = {
         STATE.streak++;
         STATE.totalCorrect++;
         Game.saveState();
-        const result = RewardSystem.recordCorrect('lettersDraw');
+        const result = RewardSystem.recordCorrect(this.modeId);
         const effectsDone = result.milestoneLevel
-          ? Mascot.celebrate(result.milestoneLevel, EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+          ? Mascot.celebrate(result.milestoneLevel, EL.mascotDraw, character, EL.drawInkCanvas, {
               size: { width: 110, height: 110 },
               holdUntil: audioDone
             })
-          : Mascot.cheer(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+          : Mascot.cheer(EL.mascotDraw, character, EL.drawInkCanvas, {
               size: { width: 110, height: 110 },
               holdUntil: audioDone
             });
-        Promise.all([effectsDone, audioDone]).then(() => this.pickNewLetter());
+        Promise.all([effectsDone, audioDone]).then(() => this.pickNewItem());
       } else {
         // encourage() - es gibt keine eigene "traurige" Pose (siehe
         // CLAUDE.md). Bewusst KEIN RewardSystem.recordWrong() hier: die
@@ -520,11 +596,11 @@ export const LetterDraw = {
         // holdUntil: die "Guter Versuch..."-Nachricht ist deutlich länger
         // als die anderen Feedback-Sätze, ohne das würde das Maskottchen
         // oft schon wegfliegen, bevor sie zu Ende ist.
-        Mascot.encourage(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+        Mascot.encourage(EL.mascotDraw, character, EL.drawInkCanvas, {
           size: { width: 95, height: 95 },
           holdUntil: audioDone
         });
-        audioDone.then(() => this.pickNewLetter());
+        audioDone.then(() => this.pickNewItem());
       }
     }
   },

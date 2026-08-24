@@ -261,8 +261,9 @@ export const Mascot = {
   // Normale Richtig-Antwort-Feier - inhaltlich identisch mit dem
   // ursprünglichen, direkt in Game.handleCorrect() liegenden flyTo()-
   // Aufruf, hierher gezogen, damit alle Aufrufstellen (count/arithmetic/
-  // lettersHear/lettersFind über Game.handleCorrect(), lettersDraw über
-  // LetterDraw.handleNext()) dieselbe Logik statt eigener Kopien nutzen.
+  // lettersHear/lettersFind über Game.handleCorrect(), lettersDraw/
+  // numbersDraw über TraceDraw.handleNext()) dieselbe Logik statt eigener
+  // Kopien nutzen.
   cheer(sourceImgEl, character, target, opts = {}) {
     const { size = null, holdUntil = null } = opts;
     const t = TIMINGS.CHEER;

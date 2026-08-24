@@ -4,7 +4,7 @@ import { EL } from './dom.js';
 import { TTS } from './tts.js';
 import { Mascot } from './mascot.js';
 import { withTimeout } from './utils.js';
-import { LetterDraw } from './letterDraw.js';
+import { TraceDraw } from './traceDraw.js';
 import { measureLayoutChrome } from './layoutChrome.js';
 import { RewardSystem } from './rewardSystem.js';
 
@@ -117,10 +117,10 @@ export const Game = {
     Mascot.cancelFlight(EL.mascotDraw);
     this.saveState();
 
-    if (modeId === 'lettersDraw') {
+    if (modeId === 'lettersDraw' || modeId === 'numbersDraw') {
       this.showScreen('letter-draw');
-      Mascot.greet(EL.mascotDraw, 'buchstabino');
-      LetterDraw.start();
+      Mascot.greet(EL.mascotDraw, modeId === 'lettersDraw' ? 'buchstabino' : 'zahlofant');
+      TraceDraw.start(modeId);
       return;
     }
 
@@ -655,11 +655,12 @@ export const Game = {
     });
 
     // Menu button auf dem Zeichnen-Screen (eigener Screen, nicht Teil von
-    // screen-game) - Zeichnen gibt es nur unter Buchstaben, deshalb immer
-    // zurück zur Buchstaben-Moduswahl, nicht zur allgemeinen Kategoriewahl.
+    // screen-game) - Zeichnen gibt es sowohl unter Buchstaben als auch
+    // unter Zahlen (siehe js/traceDraw.js), daher je nach STATE.mode zurück
+    // zur passenden Moduswahl statt fest zur Buchstaben-Moduswahl.
     EL.btnDrawMenu.addEventListener('click', () => {
       Mascot.cancelFlight(EL.mascotDraw);
-      this.showScreen('letters-mode-select');
+      this.showScreen(STATE.mode === 'numbersDraw' ? 'mode-select' : 'letters-mode-select');
     });
 
     // Repeat button - sperrt sich selbst während der eigenen Ansage, sonst

@@ -1,7 +1,7 @@
 // Service Worker für PWA-Offline-Fähigkeit
 // Cacht die wichtigsten Assets, damit das Spiel auch ohne Internet funktioniert
 
-const CACHE_NAME = 'buchstabino-zahlofant-v9';
+const CACHE_NAME = 'buchstabino-zahlofant-v10';
 const MASCOT_BASE = '/assets/mascots/buchstabino_zahlofant_assets/svg/';
 const MASCOT_POSES = ['idle', 'waving', 'thinking', 'celebrating'];
 const MASCOT_ASSETS = ['buchstabino', 'zahlofant'].flatMap(
@@ -9,7 +9,7 @@ const MASCOT_ASSETS = ['buchstabino', 'zahlofant'].flatMap(
 );
 const JS_MODULES = [
   'utils', 'config', 'state', 'dom', 'tts', 'timings', 'gameEvents', 'rewardStorage',
-  'rewardSystem', 'confetti', 'celebration', 'mascot', 'letterDraw', 'rewardUI', 'game'
+  'rewardSystem', 'confetti', 'celebration', 'mascot', 'traceDraw', 'rewardUI', 'game'
 ].map(name => `/js/${name}.js`);
 // Audio-Baustein-Keys für die ElevenLabs-TTS (siehe js/tts.js + scripts/tts-texts.mjs).
 // MUSS mit den dort erzeugten Keys übereinstimmen - beim Ändern des
@@ -25,6 +25,9 @@ const FIXED_AUDIO_KEYS = [
   'fixed_count_question', 'fixed_help_hint_buchstabino', 'fixed_help_hint_zahlofant',
   'fixed_draw_success', 'fixed_draw_retry_overflow', 'fixed_draw_retry_coverage',
   'fixed_draw_freehand_pass', 'fixed_draw_freehand_fail',
+  'fixed_draw_success_zahlofant', 'fixed_draw_retry_overflow_zahlofant',
+  'fixed_draw_retry_coverage_zahlofant', 'fixed_draw_freehand_pass_zahlofant',
+  'fixed_draw_freehand_fail_zahlofant',
   'greet_buchstabino', 'greet_zahlofant'
 ];
 const AUDIO_KEYS = [

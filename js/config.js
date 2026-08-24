@@ -35,6 +35,11 @@ export const CONFIG = {
       id: 'lettersDraw',
       name: 'Zeichnen',
       icon: '✏️'
+    },
+    numbersDraw: {
+      id: 'numbersDraw',
+      name: 'Zeichnen',
+      icon: '✍️'
     }
   },
   // Buchstaben mit Beispielwort für "Hören"/"Finden" (Anlaut-Motiv)

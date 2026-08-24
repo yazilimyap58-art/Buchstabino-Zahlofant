@@ -86,12 +86,17 @@ add('fixed_count_question', 'Wie viele siehst du?', 'zahlofant');
 add('fixed_help_hint_buchstabino', 'Schau mal genau hin!', 'buchstabino');
 add('fixed_help_hint_zahlofant', 'Schau mal genau hin!', 'zahlofant');
 
-// --- Zeichnen-Modus (Buchstabino) -----------------------------------------
+// --- Zeichnen-Modus (Buchstabino: Buchstaben, Zahlofant: Zahlen) -----------
 add('fixed_draw_success', 'Super gemacht!', 'buchstabino');
 add('fixed_draw_retry_overflow', 'Achte darauf, auf der Linie zu bleiben, und fahr sie weiter nach!', 'buchstabino');
 add('fixed_draw_retry_coverage', 'Noch nicht ganz. Fahr die Linie weiter nach!', 'buchstabino');
 add('fixed_draw_freehand_pass', 'Toll gemalt!', 'buchstabino');
 add('fixed_draw_freehand_fail', 'Guter Versuch! Versuch dich beim nächsten Mal genau an die Form zu erinnern.', 'buchstabino');
+add('fixed_draw_success_zahlofant', 'Super gemacht!', 'zahlofant');
+add('fixed_draw_retry_overflow_zahlofant', 'Achte darauf, auf der Linie zu bleiben, und fahr sie weiter nach!', 'zahlofant');
+add('fixed_draw_retry_coverage_zahlofant', 'Noch nicht ganz. Fahr die Linie weiter nach!', 'zahlofant');
+add('fixed_draw_freehand_pass_zahlofant', 'Toll gemalt!', 'zahlofant');
+add('fixed_draw_freehand_fail_zahlofant', 'Guter Versuch! Versuch dich beim nächsten Mal genau an die Form zu erinnern.', 'zahlofant');
 
 // --- Begrüßung Kategorie-Auswahl -------------------------------------------
 add('greet_buchstabino', 'Hallo, ich bin Buchstabino! Lass uns gemeinsam die Buchstaben lernen.', 'buchstabino');

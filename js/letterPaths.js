@@ -9,7 +9,7 @@
 // x-Höhe (Kleinbuchstaben ohne Ober-/Unterlänge) liegt zwischen ~42 und 100.
 // Befehle: ['M',x,y] Stift aufsetzen, ['L',x,y] Linie, ['Q',cx,cy,x,y]
 // quadratische Kurve. Der letzte Befehl eines Strichs bestimmt Position und
-// Richtung des Richtungspfeils (siehe LetterDraw.buildLetterPath()).
+// Richtung des Richtungspfeils (siehe TraceDraw.buildItemPath()).
 export const LETTER_PATHS = {
   A: { strokes: [
     [['M', 12, 100], ['L', 50, 4], ['L', 88, 100]],
@@ -209,6 +209,6 @@ export const LETTER_PATHS = {
 };
 
 // Nominale Box, in der alle obigen Koordinaten liegen (siehe Kommentar oben) -
-// wird von LetterDraw.letterTransform() benutzt, um die Buchstaben unabhängig
+// wird von TraceDraw.pathTransform() benutzt, um die Buchstaben unabhängig
 // von ihrer tatsächlichen Höhe (Ober-/Unterlängen) einheitlich einzupassen.
 export const LETTER_PATH_BOX = { width: 100, height: 132 };

@@ -857,11 +857,12 @@ body {
 
 /* Größte Fläche, die sowohl Breite als auch verfügbare Höhe (Viewport
    minus die zwei schwebenden Leisten) respektiert, quadratisch bleibend -
-   Buchstabenformen sind in einer quadratischen Nominal-Box authored
-   (siehe LETTER_PATH_BOX in js/letterPaths.js). js/letterDraw.js liest
-   die tatsächliche gerenderte Größe selbst aus (getBoundingClientRect())
-   und skaliert die Canvas-Transform-Mathematik proportional mit - hier
-   ist keine JS-Änderung nötig, nur diese CSS-Größe. */
+   Buchstaben-/Ziffernformen sind in einer quadratischen Nominal-Box
+   authored (siehe LETTER_PATH_BOX/NUMBER_PATH_BOX in js/letterPaths.js
+   bzw. js/numberPaths.js). js/traceDraw.js liest die tatsächliche
+   gerenderte Größe selbst aus (getBoundingClientRect()) und skaliert die
+   Canvas-Transform-Mathematik proportional mit - hier ist keine JS-
+   Änderung nötig, nur diese CSS-Größe. */
 .draw-stage {
   position: relative;
   aspect-ratio: 1 / 1;
@@ -889,8 +890,8 @@ body {
   touch-action: none;
 }
 
-/* Hilfe-Funktion: kleiner Punkt, der einmal den Buchstaben-Pfad abfährt
-   (Position wird per JS in LetterDraw.showHelp() animiert). */
+/* Hilfe-Funktion: kleiner Punkt, der einmal den Zeichen-Pfad abfährt
+   (Position wird per JS in TraceDraw.showHelp() animiert). */
 .draw-help-marker {
   position: absolute;
   width: 22px;

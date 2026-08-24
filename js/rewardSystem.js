@@ -2,7 +2,7 @@
    Belohnungssystem: rundenlokaler Streak, Meilensteine, Sticker
    ----------------------------
    Kennt kein DOM - reagiert nur auf recordCorrect()/recordWrong()-Aufrufe
-   aus Game.handleCorrect()/handleWrong()/LetterDraw.handleNext() und
+   aus Game.handleCorrect()/handleWrong()/TraceDraw.handleNext() und
    emittiert Events für rewardUI.js (Album, Pflanzen-Fortschritt). */
 import { GameEvents } from './gameEvents.js';
 import { RewardStorage } from './rewardStorage.js';
@@ -12,7 +12,8 @@ export const MODE_LABELS = {
   arithmetic: 'Rechnen',
   lettersHear: 'Hören',
   lettersFind: 'Finden',
-  lettersDraw: 'Zeichnen'
+  lettersDraw: 'Zeichnen',
+  numbersDraw: 'Zeichnen'
 };
 
 // Sticker-Katalog: pro Modus ein Sticker für 3/5/10 in Folge. Emojis statt
@@ -24,7 +25,8 @@ const MODE_EMOJI_TIERS = {
   arithmetic: ['➕', '🧮', '🏆'],
   lettersHear: ['👂', '🔤', '🏆'],
   lettersFind: ['🔍', '🔤', '🏆'],
-  lettersDraw: ['✏️', '📝', '🏆']
+  lettersDraw: ['✏️', '📝', '🏆'],
+  numbersDraw: ['✍️', '🔢', '🏆']
 };
 const TIERS = [3, 5, 10];
 

@@ -29,14 +29,14 @@ const GAP_MS = 90;
 // der Browser-HTTP-Cache (bzw. der Service-Worker-Cache offline) verhindert
 // trotzdem einen erneuten Netzwerk-Request. Zusätzlich sperren die
 // "Wiederholen"/"Hilfe"-Buttons sich selbst während der eigenen Ansage
-// (siehe game.js/letterDraw.js bindEvents/init) - das verhindert den
+// (siehe game.js/traceDraw.js bindEvents/init) - das verhindert den
 // häufigsten Auslöser (Doppel-Tap) von vornherein, statt nur die Folgen
 // (Audio-Korruption) zu vermeiden.
 //
 // Trotzdem kann mehr als eine TTS.speak()-Sequenz gleichzeitig laufen (z.B.
 // eine Begrüßung, die noch läuft, während bereits eine Aufgabe angesagt
 // wird) - ohne Gegenmaßnahme würden sich die Audios hörbar überlagern.
-// _speakGen (gleiches Zähler-Muster wie Mascot._gen/LetterDraw.helpToken)
+// _speakGen (gleiches Zähler-Muster wie Mascot._gen/TraceDraw.helpToken)
 // macht speak() global "last call wins": jeder neue Aufruf stoppt sofort
 // die noch laufende Wiedergabe und markiert alle älteren Sequenzen als
 // veraltet, sodass sie sich an ihrem nächsten Prüfpunkt selbst beenden statt
