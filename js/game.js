@@ -6,6 +6,7 @@ import { Mascot } from './mascot.js';
 import { Confetti } from './confetti.js';
 import { withTimeout } from './utils.js';
 import { LetterDraw } from './letterDraw.js';
+import { measureLayoutChrome } from './layoutChrome.js';
 
 // Merkt sich pro Session (nicht persistiert), welche Bereiche schon einmal
 // geöffnet wurden, damit die Begrüßungs-Pose nur beim ersten Öffnen läuft.
@@ -73,6 +74,10 @@ export const Game = {
     EL.screenLettersModeSelect.hidden = name !== 'letters-mode-select';
     EL.screenGame.hidden = name !== 'game';
     EL.screenLetterDraw.hidden = name !== 'letter-draw';
+    // Neu vermisst die tatsächliche Höhe der schwebenden Header-/Footer-
+    // Leisten des jetzt sichtbaren Screens (siehe js/layoutChrome.js für
+    // die Begründung, warum das synchron statt per rAF passiert).
+    measureLayoutChrome();
   },
 
   // Erste Ebene: Kategoriewahl (Buchstaben/Zahlen)
@@ -279,20 +284,46 @@ export const Game = {
     EL.motifStage.appendChild(item);
   },
 
+  // Scatter-Layouts (Finden-Kacheln, Zählen-Motive) positionieren Kinder
+  // per CSS-Prozent-Koordinaten relativ zur eigenen Box von #motif-stage
+  // (`.motif-stage--scatter .motif-item/.letter-tile { position:absolute;
+  // transform:translate(-50%,-50%); }`). Die 100dvh-Vollbild-Bühne kann
+  // heute (Konzept C) sehr niedrig werden (Handy quer), sodass ein Item
+  // nahe 0%/100% durch das translate(-50%,-50%)-Zentrieren zur Hälfte
+  // seiner eigenen Pixelgröße über den Rand der Stage hinausragen und
+  // unter die schwebenden Header-/Footer-Leisten geraten kann - das lässt
+  // sich nicht rein prozentual vermeiden, da der Rand-Sicherheitsabstand
+  // von der TATSÄCHLICHEN Pixelgröße des Items UND der Stage abhängt.
+  // Dieser Helper rechnet die Item-Halbgröße in einen Prozent-Rand um und
+  // liefert den sicheren [min,max]-Bereich je Achse.
+  getScatterSafeRange(itemSizePx) {
+    const rect = EL.motifStage.getBoundingClientRect();
+    const marginXPct = rect.width > 0 ? (itemSizePx / 2 / rect.width) * 100 : 0;
+    const marginYPct = rect.height > 0 ? (itemSizePx / 2 / rect.height) * 100 : 0;
+    return {
+      minX: Math.min(marginXPct, 40),
+      maxX: 100 - Math.min(marginXPct, 40),
+      minY: Math.min(marginYPct, 40),
+      maxY: 100 - Math.min(marginYPct, 40)
+    };
+  },
+
   // Finden: antippbare Buchstaben-Kacheln über die Bühne verteilt
   renderLetterTiles(tiles) {
     const cols = Math.ceil(Math.sqrt(tiles.length));
     const rows = Math.ceil(tiles.length / cols);
-    const cellW = 100 / cols;
-    const cellH = 100 / rows;
+    // .letter-tile ist mindestens 60px (min-width/min-height, style.css)
+    const { minX, maxX, minY, maxY } = this.getScatterSafeRange(60);
+    const cellW = (maxX - minX) / cols;
+    const cellH = (maxY - minY) / rows;
 
     tiles.forEach((tile, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const jitterX = 0.2 + Math.random() * 0.6;
       const jitterY = 0.2 + Math.random() * 0.6;
-      const left = (col + jitterX) * cellW;
-      const top = (row + jitterY) * cellH;
+      const left = minX + (col + jitterX) * cellW;
+      const top = minY + (row + jitterY) * cellH;
 
       const tileEl = document.createElement('button');
       tileEl.type = 'button';
@@ -309,16 +340,18 @@ export const Game = {
   renderScatteredMotifs(motif, count) {
     const cols = Math.ceil(Math.sqrt(count));
     const rows = Math.ceil(count / cols);
-    const cellW = 100 / cols;
-    const cellH = 100 / rows;
+    // .motif-item ist ~56px groß (.motif-svg, style.css) plus Label darunter
+    const { minX, maxX, minY, maxY } = this.getScatterSafeRange(64);
+    const cellW = (maxX - minX) / cols;
+    const cellH = (maxY - minY) / rows;
 
     for (let i = 0; i < count; i++) {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const jitterX = 0.25 + Math.random() * 0.5; // 0.25..0.75 within cell
       const jitterY = 0.25 + Math.random() * 0.5;
-      const left = (col + jitterX) * cellW;
-      const top = (row + jitterY) * cellH;
+      const left = minX + (col + jitterX) * cellW;
+      const top = minY + (row + jitterY) * cellH;
       const rotation = (Math.random() * 30 - 15).toFixed(1);
 
       const item = document.createElement('div');

@@ -5,9 +5,9 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#4ade80",
-  "orientation": "portrait",
+  "background_color": "#fdf6e9",
+  "theme_color": "#ffb703",
+  "orientation": "any",
   "icons": [
     {
       "src": "assets/icons/icon-192.png",
@@ -17,6 +17,11 @@
     {
       "src": "assets/icons/icon-512.png",
       "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icons/gamelogo.png",
+      "sizes": "1024x1024",
       "type": "image/png"
     }
   ],

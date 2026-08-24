@@ -268,8 +268,10 @@ export const LetterDraw = {
     const strokesPoints = this.sampleStrokePoints();
     if (strokesPoints.length === 0) return;
 
+    // Noch etwas langsamer als die vorige Version (totalPoints * 18,
+    // max 6000ms) - wirkte Kindern gegenüber immer noch zu zügig.
     const totalPoints = strokesPoints.reduce((sum, pts) => sum + pts.length, 0);
-    const durationMs = Math.min(3200, Math.max(1200, totalPoints * 8));
+    const durationMs = Math.min(7000, Math.max(2600, totalPoints * 24));
 
     const canvasRect = EL.drawInkCanvas.getBoundingClientRect();
     const firstPoint = strokesPoints[0][0];
@@ -279,12 +281,33 @@ export const LetterDraw = {
       width: 40,
       height: 40
     };
-    Mascot.flyTo(EL.mascotDraw, 'buchstabino', startTargetRect, { holdMs: durationMs });
+    // align:'point' statt des Standards ('hand'/'below'): der Startpunkt
+    // kann irgendwo auf der Zeichenfläche liegen (nicht wie bei einem
+    // Options-Button immer oberhalb eines festen Platzes) - das Maskottchen
+    // soll LINKS DANEBEN erscheinen und mit der ausgestreckten Zeigehand
+    // (rechts am Körper) genau auf den Startpixel deuten, statt darunter zu
+    // schweben und den Punkt zu verdecken.
+    //
+    // flightMs wird hier explizit mitgegeben (statt Mascot.flyTo()s eigenen
+    // Default zu übernehmen), weil derselbe Wert unten auch den Start der
+    // Punkt-Animation verzögert - das Maskottchen soll bereits am Startpixel
+    // angekommen sein, BEVOR sich der Punkt in Bewegung setzt, statt beide
+    // gleichzeitig loslaufen zu lassen (wirkte davor so, als würde der Punkt
+    // dem noch ankommenden Maskottchen davonrennen).
+    const flightMs = 700;
+    Mascot.flyTo(EL.mascotDraw, 'buchstabino', startTargetRect, { holdMs: durationMs, align: 'point', flightMs });
     EL.drawHelpMarker.hidden = false;
-    const startTime = performance.now();
+    // Punkt schon sichtbar auf den Startpixel setzen, aber noch nicht
+    // bewegen (startTime bleibt null, bis der verzögerte Loop unten
+    // anläuft) - so steht er bereits sichtbar bereit, während das
+    // Maskottchen noch heranfliegt.
+    EL.drawHelpMarker.style.left = `${firstPoint.x}px`;
+    EL.drawHelpMarker.style.top = `${firstPoint.y}px`;
+    let startTime = null;
 
     const step = (now) => {
       if (token !== this.helpToken) return;
+      if (startTime === null) startTime = now;
       const progress = Math.min(1, (now - startTime) / durationMs);
       const point = this.pointAtProgress(strokesPoints, progress);
       EL.drawHelpMarker.style.left = `${point.x}px`;
@@ -295,7 +318,10 @@ export const LetterDraw = {
         EL.drawHelpMarker.hidden = true;
       }
     };
-    requestAnimationFrame(step);
+    setTimeout(() => {
+      if (token !== this.helpToken) return;
+      requestAnimationFrame(step);
+    }, flightMs);
   },
 
   // Bricht eine laufende Hilfe-Marker-Animation ab (neuer Buchstabe, neue

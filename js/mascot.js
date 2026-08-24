@@ -103,6 +103,12 @@ export const Mascot = {
       //   Hilfe-Funktion, die auf ein konkretes Element zeigen soll.
       // 'center': Bild schlicht mittig über/auf `target` - für die große
       //   Feier, wo nichts Bestimmtes angezeigt wird.
+      // 'point': die Fingerspitze der Zeigehand landet EXAKT auf dem
+      //   Mittelpunkt von `target` (beide Achsen, `vAlign` wird ignoriert)
+      //   - für die Zeichnen-Hilfe, wo `target` ein konkreter Pixel auf der
+      //   Zeichenfläche ist (nicht ein Button mit fester Höhe unterhalb),
+      //   das Maskottchen also LINKS DANEBEN sitzen und mit der Hand
+      //   hinüberzeigen soll statt darunter.
       align = 'hand',
       // 'below': unterhalb von `target` (Hilfe-Funktion).
       // 'center': mittig auf `target` (Feier, "kommt herunter auf die Bühne").
@@ -162,12 +168,33 @@ export const Mascot = {
     // täte, damit die Hand die Antwort trifft. Im 'center'-Modus (Feier)
     // ist nichts Bestimmtes anzuzeigen, daher schlicht mittig auf `target`.
     const handXFraction = 0.82;
-    const targetLeft = align === 'center'
-      ? targetRect.left + targetRect.width / 2 - w / 2
-      : targetRect.left + targetRect.width / 2 - w * handXFraction;
-    const targetTop = vAlign === 'center'
-      ? targetRect.top + targetRect.height / 2 - h / 2
-      : targetRect.bottom + gap;
+    // Fingerspitze sitzt im 300x340-viewBox der pointing-SVGs bei etwa
+    // x≈250-260/y≈70-90, also ungefähr (0.85, 0.24) der Bildgröße - für
+    // align:'point' (siehe oben) wird das Bild so verschoben, dass genau
+    // dieser Punkt auf `target` landet, statt die Bildmitte oder -kante.
+    const handYFraction = 0.24;
+    let targetLeft;
+    let targetTop;
+    if (align === 'point') {
+      targetLeft = targetRect.left + targetRect.width / 2 - w * handXFraction;
+      targetTop = targetRect.top + targetRect.height / 2 - h * handYFraction;
+    } else {
+      targetLeft = align === 'center'
+        ? targetRect.left + targetRect.width / 2 - w / 2
+        : targetRect.left + targetRect.width / 2 - w * handXFraction;
+      targetTop = vAlign === 'center'
+        ? targetRect.top + targetRect.height / 2 - h / 2
+        : targetRect.bottom + gap;
+    }
+
+    // Sicherheitsabstand zum Viewport-Rand: bei align:'point' kann `target`
+    // ein beliebiger Pixel sein (z.B. ein Buchstaben-Startpunkt nah am
+    // linken Rand der Zeichenfläche) - ohne Klemmung würde das Bild dort
+    // teilweise aus dem sichtbaren Bereich herausragen, weil der
+    // Fingerspitzen-Versatz das Bild relativ weit nach links/oben schiebt.
+    const edgeMargin = 8;
+    targetLeft = Math.min(Math.max(targetLeft, edgeMargin), window.innerWidth - w - edgeMargin);
+    targetTop = Math.min(Math.max(targetTop, edgeMargin), window.innerHeight - h - edgeMargin);
 
     requestAnimationFrame(() => {
       if (!stillCurrent()) return;

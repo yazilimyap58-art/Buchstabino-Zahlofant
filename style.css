@@ -4,23 +4,41 @@
    ============================ */
 
 :root {
-  --color-primary: #4ade80;
-  --color-primary-dark: #22c55e;
-  --color-background: #f8fafc;
-  --color-surface: #ffffff;
-  --color-text: #1e293b;
-  --color-text-secondary: #64748b;
-  --color-wrong: #f87171;
-  --color-correct: #4ade80;
-  --color-hint: #fbbf24;
-  --color-option-bg: #f1f5f9;
-  --color-option-hover: #e2e8f0;
-  --color-progress-bg: #e2e8f0;
-  --color-progress-fg: #4ade80;
-  --shadow-soft: 0 2px 8px rgba(0,0,0,0.08);
-  --shadow-medium: 0 4px 12px rgba(0,0,0,0.12);
+  /* Marken-Akzente, an die zwei Maskottchen angelehnt */
+  --color-buchstabino: #7c5cff;
+  --color-buchstabino-dark: #5b3fd6;
+  --color-zahlofant: #2f8fe0;
+  --color-zahlofant-dark: #1f6fb8;
+  --color-amber: #ffb703;
+  --color-amber-dark: #e6a300;
+
+  /* Primary bleibt als generischer Alias erhalten (Pause-Modal, Fokus-Ringe
+     etc. sind kategorie-unabhängig) */
+  --color-primary: var(--color-amber);
+  --color-primary-dark: var(--color-amber-dark);
+
+  --color-background: #fdf6e9;
+  --color-background-alt: #f6ecd9;
+  --color-surface: #fffaf0;
+  --color-surface-floating: rgba(255, 250, 240, 0.86);
+  --color-text: #2b2140;
+  --color-text-secondary: #6b5f82;
+  --color-border-subtle: #e8dcc2;
+
+  --color-wrong: #ef5b5b;
+  --color-correct: #4caf6d;
+  --color-hint: #ffc93c;
+  --color-option-bg: #f3e9d6;
+  --color-option-hover: #ece0c8;
+  --color-progress-bg: #ece0c8;
+  --color-progress-fg: var(--color-amber);
+
+  --shadow-soft: 0 2px 8px rgba(43, 33, 64, 0.10);
+  --shadow-medium: 0 6px 20px rgba(43, 33, 64, 0.16);
   --radius-sm: 12px;
+  --radius-md: 18px;
   --radius-lg: 24px;
+  --radius-pill: 999px;
   --transition-fast: 0.15s ease;
   --transition-medium: 0.25s ease;
   --space-xs: 4px;
@@ -28,24 +46,57 @@
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
+  --space-2xl: 48px;
   --gap-sm: 8px;
   --gap-md: 16px;
   --gap-lg: 24px;
+
+  /* Nominale Höhe der schwebenden Header-/Footer-Leisten - von CSS
+     (Stage-Padding) UND JS (Game.getStageSafeRect() in game.js) genutzt,
+     damit verstreute Motive/Kacheln nie unter die Leisten rutschen. */
+  --chrome-height: 64px;
+
+  --font-display: 'Baloo 2', 'Segoe UI Rounded', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Eigene, bewusst verspieltere Schrift NUR für das Spiel-Wortmarke
+     "Buchstabino & Zahlofant" auf dem Startbildschirm - unterscheidet
+     sich absichtlich von --font-display (das für normale UI-Überschriften
+     wie Kartentitel/Aufgabentext bleibt), damit der Titel wie ein echtes
+     Logo wirkt statt wie hochskalierter Fließtext. */
+  --font-logo: 'Chewy', var(--font-display);
+
+  /* Gepunktetes "Wegpunkt"-Backdrop-Muster auf den Screens - niedrige
+     Deckkraft als eigenes Token statt color-mix(), für breitere Browser-
+     Unterstützung. */
+  --color-dot: rgba(43, 33, 64, 0.05);
 }
 
-/* Dark mode overrides */
+/* Dark mode overrides: "Nacht-Abenteuer"-Variante, gleiche Akzenttöne
+   mit höherer Leuchtkraft für Kontrast auf dunklem Grund. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-background: #0f172a;
-    --color-surface: #1e2431;
-    --color-text: #f8fafc;
-    --color-text-secondary: #94a3b8;
-    --color-option-bg: #334155;
-    --color-option-hover: #475569;
-    --color-progress-bg: #334155;
-    --color-progress-fg: #4ade80;
-    --color-primary: #4ade80;
-    --color-primary-dark: #22c55e;
+    --color-background: #1f1b2e;
+    --color-background-alt: #251f38;
+    --color-surface: #2a2440;
+    --color-surface-floating: rgba(31, 27, 46, 0.82);
+    --color-text: #f8f4ff;
+    --color-text-secondary: #b8adcf;
+    --color-border-subtle: #3d3555;
+    --color-option-bg: #352d4d;
+    --color-option-hover: #443a63;
+    --color-progress-bg: #352d4d;
+    --color-progress-fg: var(--color-amber);
+    --color-buchstabino: #9c85ff;
+    --color-buchstabino-dark: #9c85ff;
+    --color-zahlofant: #5aabf0;
+    --color-zahlofant-dark: #5aabf0;
+    --color-amber: #ffc93c;
+    --color-amber-dark: #ffb703;
+    --color-primary: var(--color-amber);
+    --color-primary-dark: var(--color-amber-dark);
+    --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.28);
+    --shadow-medium: 0 6px 20px rgba(0, 0, 0, 0.38);
+    --color-dot: rgba(248, 244, 255, 0.05);
   }
 }
 
@@ -60,7 +111,7 @@ html, #root {
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   background: var(--color-background);
   color: var(--color-text);
   -webkit-tap-highlight-color: transparent;
@@ -84,41 +135,193 @@ body {
    ============================ */
 .app-shell {
   width: 100%;
+  height: 100%;
+}
+
+/* Jeder Screen ist eine eigene Vollbild-Bühne (Konzept C: "Vollbild-Bühne
+   mit schwebendem UI") statt eines Blocks im normalen Seitenfluss - Header/
+   Footer schweben als position:absolute-Leisten darüber (siehe unten),
+   sodass sie nie mit dem Inhalt um Höhe konkurrieren. overflow-y:auto ist
+   ein Sicherheitsnetz: falls Inhalt bei Extremgrößen doch nicht passt,
+   scrollt NUR die Bühne selbst - die schwebenden Leisten bleiben, da
+   position:absolute relativ zu diesem Screen (nicht Teil des scrollenden
+   Flusses... Achtung: absolute Kinder OHNE eigenen Scroll-Container
+   scrollen technisch mit; das ist hier gewollt, da Header/Footer ohnehin
+   nie so hoch werden, dass sie den scrollbaren Bereich verlassen). */
+.screen {
+  position: relative;
+  height: 100dvh;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: var(--color-background);
+  background-image: radial-gradient(var(--color-dot) 1px, transparent 1.5px);
+  background-size: 28px 28px;
 }
 
 .screen[hidden] {
   display: none;
 }
 
+/* Gemeinsames Innenabstand-Pattern für alle drei Screen-Typen: reserviert
+   Platz für die schwebenden Header-/Footer-Leisten, damit normaler
+   Fluss-Inhalt nie darunter verschwindet. Ersetzt die vormals dreifach
+   duplizierten `max-width:420px; margin:0 auto`-Blöcke.
+   --header-h/--footer-h werden von js/layoutChrome.js aus der TATSÄCHLICH
+   gerenderten Höhe der Leisten gesetzt (ResizeObserver + Screen-Wechsel-
+   Beobachtung) - ein fester Schätzwert (--chrome-height) reicht nicht,
+   weil z.B. der Footer mit 4 Buttons je nach Breite/Schriftgröße/Sprache
+   auf zwei Zeilen umbrechen und dadurch deutlich höher werden kann.
+   --chrome-height bleibt nur als Fallback für den allerersten Render,
+   bevor das JS gelaufen ist. */
+.mode-select,
+.game-container,
+.draw-container {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding-top: calc(var(--header-h, var(--chrome-height)) + env(safe-area-inset-top) + var(--space-sm));
+  /* Größerer Puffer als oben (--space-lg statt --space-sm): reine
+     Platzreservierung nach Höhe verhindert zwar Überlappung, wirkt ohne
+     zusätzlichen Puffer aber optisch zu eng - Inhalt (z.B. Antwort-
+     Buttons) klebt sonst direkt am Rand der schwebenden Footer-Leiste. */
+  padding-bottom: calc(var(--footer-h, var(--chrome-height)) + env(safe-area-inset-bottom) + var(--space-lg));
+  padding-left: calc(var(--space-md) + env(safe-area-inset-left));
+  padding-right: calc(var(--space-md) + env(safe-area-inset-right));
+}
+
+/* Gemeinsame Positionierung für alle schwebenden Header-/Footer-Leisten.
+   .btn-back-category ist der EIGENSTÄNDIGE "Zurück"/"Menü"-Button auf den
+   Moduswahl-Screens (direktes Geschwister von .mode-select__header, siehe
+   index.html) und schwebt separat oben links; der strukturell andere
+   .btn-back in .draw-header (dort per Klasse "btn-back", ohne
+   "-category") bleibt bewusst normales Flex-Kind INNERHALB der bereits
+   schwebenden .draw-header-Leiste, nicht selbst absolut positioniert.
+   .mode-select__header ist HIER bewusst NICHT dabei: nur auf dem
+   Kategoriewahl-Screen (Startbildschirm, kein Menü-Button vorhanden)
+   schwebt die Titel-Pille oben (siehe .category-select .mode-select__header
+   unten); auf den Moduswahl-Screens ist sie normaler Fließinhalt, der
+   zwischen dem oben schwebenden Menü-Button und "Wähle ein Spiel"
+   einrückt statt seitlich daneben gequetscht zu werden (siehe unten). */
+.game-header,
+.game-footer,
+.draw-header,
+.draw-footer,
+.btn-back-category {
+  position: absolute;
+  z-index: 20;
+}
+
 /* ============================
    Moduswahl-Screen
    ============================ */
 .mode-select {
-  max-width: 420px;
-  margin: 0 auto;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--space-lg);
-  padding: var(--space-xl) var(--space-md);
   text-align: center;
   animation: fadeInUp 0.4s var(--transition-fast) both;
 }
 
+/* Auf screen-mode-select/screen-letters-mode-select ist die Titel-Pille
+   normaler Fließinhalt (kein position:absolute, siehe oben) - sie reiht
+   sich dadurch zwischen dem oben links schwebenden "🏠 Menü"-Button und
+   "Wähle ein Spiel:" ein und zentriert sich sauber via .mode-select's
+   align-items:center, statt seitlich neben dem Button eingeengt zu
+   wirken. Der reservierte Platz ganz oben (.mode-select's padding-top,
+   siehe weiter oben) richtet sich dabei NUR nach der tatsächlichen Höhe
+   von .btn-back-category (js/layoutChrome.js misst dafür gezielt nur
+   noch diesen Button auf diesem Screen-Typ, nicht mehr die - jetzt nicht
+   mehr schwebende - Titel-Pille). */
 .mode-select__header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-lg) var(--space-xs) var(--space-xs);
+  background: var(--color-surface-floating);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-medium);
+}
+
+/* Nur auf dem Kategoriewahl-Screen (Startbildschirm) schwebt die
+   Titel-Pille weiterhin oben zentriert - dort gibt es keinen Menü-Button,
+   der ihr Platz streitig macht. */
+.category-select .mode-select__header {
+  position: absolute;
+  z-index: 20;
+  top: calc(var(--space-sm) + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(90vw, 420px);
+}
+
+/* Startbildschirm-Wortmarke: eigenes vertikales Hero-Layout statt der
+   schmalen horizontalen Pille, die im In-Game-Header verwendet wird -
+   Logo-Bild + Titel als bewusst gestaltete Einheit statt "heruntergeschriebenem"
+   Fließtext in einer zu kleinen Box. */
+.mode-select__header--hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xl) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-floating);
+}
+
+.app-logo {
+  width: 104px;
+  height: 104px;
+  border-radius: 28%;
+  box-shadow: var(--shadow-medium);
+}
+
+.mode-select__title--logo {
+  font-family: var(--font-logo);
+  font-weight: 400;
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0 var(--space-xs);
+}
+
+.logo-word {
+  text-shadow: 0 2px 0 rgba(43, 33, 64, 0.12);
+}
+
+.logo-word--buchstabino {
+  color: var(--color-buchstabino-dark);
+}
+
+.logo-word--zahlofant {
+  color: var(--color-zahlofant-dark);
+}
+
+.logo-amp {
+  color: var(--color-amber-dark);
+  font-size: 0.8em;
+}
+
+.mode-select__header .mascot-img {
+  width: 48px;
+  height: 48px;
 }
 
 .mode-select__title {
-  font-size: 1.625rem;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   text-align: center;
+  color: var(--color-text);
 }
 
 .mode-select__subtitle {
@@ -126,11 +329,18 @@ body {
   font-size: 1rem;
 }
 
+/* Responsives Karten-Grid statt starrer Einzelspalte: auf Handy (schmal)
+   passt nur 1 Spalte (identisch zum bisherigen gestapelten Layout), auf
+   Tablet/Desktop fließen die Karten in 2-3 Spalten. Kritisch für Handy
+   quer (~844px breit): dort passen bereits alle 3 Karten von
+   screen-letters-mode-select in eine Zeile statt gestapelt - das ist der
+   Haupthebel gegen den früheren Höhen-Überlauf auf diesem Screen. */
 .mode-cards {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-md);
-  width: 100%;
+  width: min(100%, 960px);
+  margin: 0 auto;
 }
 
 .mode-card {
@@ -154,6 +364,14 @@ body {
     transform: translateY(-2px);
     box-shadow: var(--shadow-medium);
   }
+  /* Kategorie-Karten bekommen den Marken-Akzent ihres Maskottchens statt
+     des generischen Amber-Akzents. */
+  .mode-card[data-category="letters"]:hover {
+    border-color: var(--color-buchstabino);
+  }
+  .mode-card[data-category="numbers"]:hover {
+    border-color: var(--color-zahlofant);
+  }
 }
 
 .mode-card:active {
@@ -170,7 +388,8 @@ body {
 }
 
 .mode-card__title {
-  font-size: 1.25rem;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
   font-weight: 700;
 }
 
@@ -183,23 +402,44 @@ body {
    Game Container
    ============================ */
 .game-container {
-  max-width: 420px;
-  margin: 0 auto;
-  padding: var(--space-xl) var(--space-md) var(--space-lg);
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 /* ============================
    Header
    ============================ */
+/* Grid statt Flex+space-between: "◀ Zurück" (links) und das Maskottchen
+   (rechts) sind unterschiedlich breit - mit space-between würde der
+   Fortschrittsring dadurch nicht wirklich mittig sitzen, sondern näher
+   zur schmaleren Seite rutschen. Zwei GLEICH breite äußere Spalten
+   (1fr/1fr) zentrieren den Ring dagegen zuverlässig, unabhängig davon,
+   wie breit Zurück-Button/Maskottchen jeweils sind. */
 .game-header {
-  display: flex;
+  top: calc(var(--space-sm) + env(safe-area-inset-top));
+  left: calc(var(--space-md) + env(safe-area-inset-left));
+  right: calc(var(--space-md) + env(safe-area-inset-right));
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-sm);
   text-align: center;
-  margin-bottom: var(--space-xl);
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-surface-floating);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-medium);
   animation: fadeInDown 0.4s var(--transition-fast) both;
+}
+
+.game-header > .btn-back {
+  justify-self: start;
+}
+
+.game-header > .mascot-img {
+  justify-self: end;
 }
 
 .progress-ring {
@@ -236,30 +476,56 @@ body {
   color: var(--color-text-secondary);
 }
 
-/* Streak-Anzeige */
+/* Streak-Anzeige: liegt ÜBER dem Fortschrittsring (.progress-ring ist
+   position:relative, die SVG ist dessen erstes Flex-Kind und beginnt
+   daher exakt bei 0/0) - die Mitte des Rings war vorher leer, während
+   Feuer+Zahl separat daneben standen; ursprüngliche Absicht war wohl
+   schon immer, dass beides zusammengehört. */
 .streak-display {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
-  font-size: 0.875rem;
+  gap: 2px;
+  font-size: 0.7rem;
   color: var(--color-text-secondary);
+  pointer-events: none;
 }
 
 .streak-icon {
   color: #f6e05e;
+  font-size: 0.85rem;
+  line-height: 1;
 }
 
 .streak-count {
   color: var(--color-text);
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* ============================
    Task Area
    ============================ */
+/* flex:1/min-height:0 lässt die Task-Area den kompletten Restraum
+   zwischen den schwebenden Header-/Footer-Leisten einnehmen (statt einer
+   festen Höhe) und sich auf sehr niedrigen Viewports (Handy quer)
+   trotzdem korrekt schrumpfen - ohne min-height:0 würde ein Flex-Item
+   nie kleiner als sein Inhalt werden und den Footer verdecken. */
 .task-area {
   position: relative;
-  margin: var(--space-xl) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   animation: fadeInUp 0.4s var(--transition-fast) both;
 }
 
@@ -271,18 +537,29 @@ body {
   align-items: center;
   gap: var(--space-md);
   margin: 0 auto;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-/* Motiv-Bühne: Basis */
+/* Motiv-Bühne: Basis - Deckel bewusst hoch angesetzt (statt der früheren
+   380px), damit Tablets die Fläche wirklich nutzen; verhindert nur ein
+   absurdes Verstreuen auf sehr breiten Desktop-Fenstern. */
 .motif-stage {
   width: 100%;
-  max-width: 380px;
+  max-width: min(100%, 720px);
 }
 
-/* Zählen: Objekte frei über die Bühne verteilt */
+/* Zählen/Finden: Objekte frei über die Bühne verteilt. flex:1 statt einer
+   festen/clamp()-Höhe füllt exakt den Restraum von .motif-container - auf
+   Handy quer bleibt dadurch automatisch weniger Höhe übrig (und die
+   JS-Jitter-Positionierung in js/game.js verteilt trotzdem korrekt
+   innerhalb dieser tatsächlichen Boxgröße, siehe getStageSafeRect()). */
 .motif-stage--scatter {
   position: relative;
-  height: clamp(220px, 40vh, 320px);
+  flex: 1 1 auto;
+  min-height: 140px;
+  width: 100%;
 }
 
 .motif-stage--scatter .motif-item,
@@ -310,12 +587,12 @@ body {
   min-height: 60px;
   padding: var(--space-xs);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-option-bg);
   color: var(--color-text);
   font-size: 1.75rem;
   font-weight: 700;
-  font-family: inherit;
+  font-family: var(--font-display);
   cursor: pointer;
   box-shadow: var(--shadow-soft);
   transition: all var(--transition-fast);
@@ -377,13 +654,22 @@ body {
   80% { transform: translate(-50%, -50%) translateX(8px); }
 }
 
-/* Addieren/Subtrahieren: zwei Gruppen nebeneinander */
+/* Addieren/Subtrahieren: zwei Gruppen nebeneinander. flex:1/min-height:0
+   wie bei .motif-stage--scatter, damit die Gruppen den exakten Restraum
+   zwischen den schwebenden Leisten füllen statt (bei vielen Motiven) über
+   deren zentrierten Inhalt nach oben unter den Header zu wachsen;
+   overflow-y:auto ist das gleiche Sicherheitsnetz wie bei .screen selbst,
+   greift hier aber lokal statt die ganze Bühne zu verschieben. */
 .motif-stage--groups {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-md);
   flex-wrap: nowrap;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
 }
 
 .motif-stage--groups .motif-group {
@@ -411,10 +697,10 @@ body {
 }
 
 .motif-svg {
-  width: 56px;
-  height: 56px;
+  width: clamp(36px, 8vh, 56px);
+  height: clamp(36px, 8vh, 56px);
   line-height: 1;
-  font-size: 2.5rem;
+  font-size: clamp(1.6rem, 7vh, 2.5rem);
 }
 
 .motif-label {
@@ -426,8 +712,9 @@ body {
 
 /* Task Question */
 .task-question {
+  font-family: var(--font-display);
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   margin-top: var(--space-sm);
   min-height: 1.8rem;
@@ -442,24 +729,35 @@ body {
   display: grid;
   gap: var(--space-sm);
   grid-template-columns: repeat(3, 1fr);
-  max-width: 360px;
+  max-width: min(100%, 520px);
   width: 100%;
-  margin: 0 auto;
+  /* margin-bottom statt nur auf den umgebenden Flex-Verteilungsraum zu
+     vertrauen: .motif-stage--scatter (flex:1) frisst normalerweise allen
+     Leerraum VOR den Optionen auf (wächst selbst), wodurch UNTER den
+     Optionen kaum noch Platz zur schwebenden Footer-Leiste übrig bliebe -
+     ein expliziter Mindestabstand hier ist zuverlässiger als auf die
+     Flex-Verteilung zu hoffen. */
+  margin: 0 auto var(--space-xl);
+  flex: 0 0 auto;
 }
 
-/* Option Buttons */
+/* Option Buttons - Höhe per clamp() statt fix 72px, damit die Buttons auf
+   sehr niedrigen Viewports (Handy quer) schrumpfen können, statt die
+   schwebende Footer-Leiste zu verdecken; 48px Minimum bleibt über der
+   gängigen Mindest-Trefferfläche für Touch-UI. */
 .option-btn {
   background: var(--color-option-bg);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   font-size: 1.25rem;
   font-weight: 600;
+  font-family: var(--font-display);
   color: var(--color-text);
   cursor: pointer;
   transition: all var(--transition-fast);
-  min-width: 72px;
-  height: 72px;
+  min-width: 48px;
+  height: clamp(48px, 14vh, 84px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -528,33 +826,46 @@ body {
    Zeichnen-Screen (Buchstaben nachfahren)
    ============================ */
 .draw-container {
-  max-width: 420px;
-  margin: 0 auto;
-  padding: var(--space-xl) var(--space-md) var(--space-lg);
-  width: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: var(--space-md);
   animation: fadeInUp 0.4s var(--transition-fast) both;
 }
 
 .draw-header {
+  top: calc(var(--space-sm) + env(safe-area-inset-top));
+  left: calc(var(--space-md) + env(safe-area-inset-left));
+  right: calc(var(--space-md) + env(safe-area-inset-right));
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-surface-floating);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-medium);
 }
 
 .draw-question {
+  font-family: var(--font-display);
   font-size: 1.125rem;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
 }
 
+/* Größte Fläche, die sowohl Breite als auch verfügbare Höhe (Viewport
+   minus die zwei schwebenden Leisten) respektiert, quadratisch bleibend -
+   Buchstabenformen sind in einer quadratischen Nominal-Box authored
+   (siehe LETTER_PATH_BOX in js/letterPaths.js). js/letterDraw.js liest
+   die tatsächliche gerenderte Größe selbst aus (getBoundingClientRect())
+   und skaliert die Canvas-Transform-Mathematik proportional mit - hier
+   ist keine JS-Änderung nötig, nur diese CSS-Größe. */
 .draw-stage {
   position: relative;
-  width: 100%;
   aspect-ratio: 1 / 1;
-  max-width: 360px;
+  width: min(92vw, calc(100dvh - var(--header-h, var(--chrome-height)) - var(--footer-h, var(--chrome-height)) - var(--space-2xl)));
   margin: 0 auto;
   background: var(--color-surface);
   border-radius: var(--radius-lg);
@@ -602,11 +913,20 @@ body {
 }
 
 .draw-footer {
+  bottom: calc(var(--space-sm) + env(safe-area-inset-bottom));
+  left: calc(var(--space-md) + env(safe-area-inset-left));
+  right: calc(var(--space-md) + env(safe-area-inset-right));
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-surface-floating);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-medium);
 }
 
 .draw-footer .btn-primary,
@@ -668,26 +988,41 @@ body {
    Footer / Controls
    ============================ */
 .game-footer {
+  bottom: calc(var(--space-sm) + env(safe-area-inset-bottom));
+  left: calc(var(--space-md) + env(safe-area-inset-left));
+  right: calc(var(--space-md) + env(safe-area-inset-right));
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--space-xl);
   gap: var(--space-md);
   animation: fadeInUp 0.4s var(--transition-fast) both;
   flex-wrap: wrap;
+  padding: var(--space-xs) var(--space-md);
+  background: var(--color-surface-floating);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-medium);
 }
 
 .btn-back {
   background: var(--color-surface);
   border: 2px solid var(--color-primary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   padding: var(--space-sm) var(--space-md);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--color-primary-dark);
   cursor: pointer;
   transition: all var(--transition-fast);
-  align-self: flex-start;
+}
+
+/* Eigenständiger schwebender "Zurück"-Button auf den Moduswahl-Screens
+   (siehe Kommentar weiter oben bei der gemeinsamen position:absolute-Regel). */
+.btn-back-category {
+  top: calc(var(--space-sm) + env(safe-area-inset-top));
+  left: calc(var(--space-md) + env(safe-area-inset-left));
+  box-shadow: var(--shadow-medium);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -795,9 +1130,8 @@ body {
   50% { transform: translateX(4px); }
 }
 
-.btn-menu,
-.btn-repeat,
 .btn-pause,
+.btn-repeat,
 .btn-help {
   background: var(--color-surface);
   border: 2px solid var(--color-primary);
@@ -808,34 +1142,51 @@ body {
   color: var(--color-primary);
   cursor: pointer;
   transition: all var(--transition-fast);
-  min-width: 80px;
+  min-width: 0;
   height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
+}
+
+/* Auf schmalen Viewports (Handy) sind selbst 3 Footer-Buttons mit
+   Emoji+Text knapp - kompakteres Padding/Schrift hält sie eher in einer
+   Zeile. Rein kosmetisch: bricht ein Umbruch trotzdem vor, reserviert
+   js/layoutChrome.js die dafür tatsächlich nötige Höhe automatisch (siehe
+   dort), es überlappt also so oder so nichts. */
+@media (max-width: 480px) {
+  .btn-pause,
+  .btn-repeat,
+  .btn-help {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.8rem;
+  }
+
+  .game-footer,
+  .draw-footer {
+    gap: var(--space-xs);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .btn-menu:hover,
-  .btn-repeat:hover,
   .btn-pause:hover,
+  .btn-repeat:hover,
   .btn-help:hover {
     background: var(--color-primary);
     color: var(--color-background);
   }
 }
 
-.btn-menu:focus-visible,
-.btn-repeat:focus-visible,
 .btn-pause:focus-visible,
+.btn-repeat:focus-visible,
 .btn-help:focus-visible {
   outline: 2px solid var(--color-primary-dark);
   outline-offset: 2px;
 }
 
-.btn-menu:active,
-.btn-repeat:active,
 .btn-pause:active,
+.btn-repeat:active,
 .btn-help:active {
   transform: scale(0.96);
 }
@@ -883,6 +1234,7 @@ body {
 }
 
 .modal-content h2 {
+  font-family: var(--font-display);
   text-align: center;
   margin-bottom: var(--space-lg);
   font-size: 1.5rem;

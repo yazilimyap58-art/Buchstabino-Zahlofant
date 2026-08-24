@@ -8,6 +8,7 @@ import { TTS } from './js/tts.js';
 import { Confetti } from './js/confetti.js';
 import { Game } from './js/game.js';
 import { LetterDraw } from './js/letterDraw.js';
+import { initLayoutChrome } from './js/layoutChrome.js';
 
 /* ----------------------------
    Initialization
@@ -19,6 +20,7 @@ function initGame() {
   // Initialize game
   Game.init();
   LetterDraw.init();
+  initLayoutChrome();
 
   // Expose for debugging
   window.Game = Game;
