@@ -59,5 +59,15 @@ export const EL = {
   btnDrawClear: document.getElementById('btn-draw-clear'),
   btnDrawRepeat: document.getElementById('btn-draw-repeat'),
   btnDrawHelp: document.getElementById('btn-draw-help'),
-  btnDrawNext: document.getElementById('btn-draw-next')
+  btnDrawNext: document.getElementById('btn-draw-next'),
+
+  // Sticker-Album / Belohnungssystem
+  btnOpenAlbum: document.getElementById('btn-open-album'),
+  screenStickerAlbum: document.getElementById('screen-sticker-album'),
+  progressPlantStage: document.getElementById('progress-plant-stage'),
+  stickerGrid: document.getElementById('sticker-grid'),
+  btnParentGate: document.getElementById('btn-parent-gate'),
+  parentModal: document.getElementById('parent-modal'),
+  parentStats: document.getElementById('parent-stats'),
+  btnParentClose: document.getElementById('btn-parent-close')
 };

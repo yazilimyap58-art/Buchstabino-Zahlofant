@@ -3,10 +3,10 @@ import { STATE } from './state.js';
 import { EL } from './dom.js';
 import { TTS } from './tts.js';
 import { Mascot } from './mascot.js';
-import { Confetti } from './confetti.js';
 import { withTimeout } from './utils.js';
 import { LetterDraw } from './letterDraw.js';
 import { measureLayoutChrome } from './layoutChrome.js';
+import { RewardSystem } from './rewardSystem.js';
 
 // Merkt sich pro Session (nicht persistiert), welche Bereiche schon einmal
 // geöffnet wurden, damit die Begrüßungs-Pose nur beim ersten Öffnen läuft.
@@ -74,6 +74,7 @@ export const Game = {
     EL.screenLettersModeSelect.hidden = name !== 'letters-mode-select';
     EL.screenGame.hidden = name !== 'game';
     EL.screenLetterDraw.hidden = name !== 'letter-draw';
+    EL.screenStickerAlbum.hidden = name !== 'sticker-album';
     // Neu vermisst die tatsächliche Höhe der schwebenden Header-/Footer-
     // Leisten des jetzt sichtbaren Screens (siehe js/layoutChrome.js für
     // die Begründung, warum das synchron statt per rAF passiert).
@@ -105,6 +106,15 @@ export const Game = {
   selectMode(modeId) {
     STATE.mode = modeId;
     STATE.streak = 0;
+    // Rundenlokaler Reward-Streak (separat von STATE.streak, siehe
+    // rewardSystem.js) startet bei jeder neuen Runde bei 0. Bricht
+    // außerdem eine evtl. noch laufende Feier des jeweils anderen Screens
+    // ab (z.B. Zahlen->Buchstaben-Wechsel während einer Zeichnen-Feier) -
+    // sonst bliebe das blockierende Celebration-Overlay über dem neuen
+    // Screen hängen.
+    RewardSystem.resetRound();
+    Mascot.cancelFlight(EL.mascotGame);
+    Mascot.cancelFlight(EL.mascotDraw);
     this.saveState();
 
     if (modeId === 'lettersDraw') {
@@ -466,27 +476,25 @@ export const Game = {
     const character = this.mascotCharacter();
     const isLetterMode = STATE.mode === 'lettersHear' || STATE.mode === 'lettersFind';
 
-    // Große Center-Stage-Feier statt nur eine kleine Kopfzeilen-Pose zu
-    // wechseln: das Maskottchen "kommt herunter" auf die Bühne
-    // (Mascot.flyTo(), größer als die Kopfzeilen-Größe, pose 'celebrating'),
-    // und das Konfetti startet erst, wenn es dort ankommt (onArrive) -
-    // fühlt sich wie EIN Ereignis an statt "Text ändert sich, irgendwo
-    // startet unabhängig davon Konfetti". confettiDone bekommt wie zuvor
-    // ein Timeout-Fallback (requestAnimationFrame pausiert komplett, wenn
-    // der Tab in den Hintergrund gerät).
+    // confettiDone bekommt wie zuvor ein Timeout-Fallback
+    // (requestAnimationFrame pausiert komplett, wenn der Tab in den
+    // Hintergrund gerät) - siehe Mascot.cheer()/celebrate().
     const audioDone = withTimeout(TTS.playEffect('correct', STATE.currentTask.answer, isLetterMode), 4000);
-    const confettiDone = new Promise(resolve => {
-      Mascot.flyTo(EL.mascotGame, character, EL.motifStage, {
-        pose: 'celebrating',
-        align: 'center',
-        vAlign: 'center',
-        size: { width: 120, height: 120 },
-        holdMs: 1700,
-        flightMs: 550,
-        holdUntil: audioDone,
-        onArrive: () => withTimeout(Confetti.trigger(), 2200).then(resolve)
-      });
-    });
+
+    // RewardSystem entscheidet synchron, ob dieser Streak einen
+    // Meilenstein trifft - danach GENAU EIN Maskottchen-Auftritt: der
+    // normale cheer() (== der bisherige Ecke->Mitte-Auftritt) oder,
+    // gesteigert, celebrate(level) mit Herz-Schwarm. Nie beides.
+    const result = RewardSystem.recordCorrect(STATE.mode);
+    const effectsDone = result.milestoneLevel
+      ? Mascot.celebrate(result.milestoneLevel, EL.mascotGame, character, EL.motifStage, {
+          size: { width: 120, height: 120 },
+          holdUntil: audioDone
+        })
+      : Mascot.cheer(EL.mascotGame, character, EL.motifStage, {
+          size: { width: 120, height: 120 },
+          holdUntil: audioDone
+        });
 
     // Update state
     STATE.streak++;
@@ -498,8 +506,8 @@ export const Game = {
     // Show brief feedback
     this.showFeedback('Richtig! 🎉', 'correct');
 
-    // Erst zur nächsten Aufgabe wechseln, wenn Audio UND Konfetti fertig sind
-    Promise.all([confettiDone, audioDone]).then(() => {
+    // Erst zur nächsten Aufgabe wechseln, wenn Audio UND Maskottchen-Feier fertig sind
+    Promise.all([effectsDone, audioDone]).then(() => {
       this.generateTask();
     });
   },
@@ -515,19 +523,18 @@ export const Game = {
     const wrongValue = wrongBtn.dataset.value ?? wrongBtn.textContent;
     const audioDone = TTS.playEffect('wrong', wrongValue, isLetterMode);
 
-    // Wie handleCorrect()'s Feier, aber mit 'thinking'-Pose statt
-    // 'celebrating' und ohne Konfetti - es gibt keine eigene "traurige"
-    // Pose (siehe CLAUDE.md), das nachdenkliche Wippen wirkt aber
-    // aufmunternd genug für "versuch's nochmal". holdUntil sorgt dafür,
-    // dass das Maskottchen mindestens so lange bleibt, wie die Sprach-
-    // ausgabe dauert, statt nach einer geschätzten Festzeit zu verschwinden.
-    Mascot.flyTo(EL.mascotGame, this.mascotCharacter(), EL.motifStage, {
-      pose: 'thinking',
-      align: 'center',
-      vAlign: 'center',
+    // Stiller Reset des rundenlokalen Reward-Streaks - kein sichtbares
+    // Bestrafungs-Feedback (siehe rewardSystem.js), STATE.streak/der
+    // Fortschrittsring bleiben davon unberührt.
+    RewardSystem.recordWrong(STATE.mode);
+
+    // encourage() - es gibt keine eigene "traurige" Pose (siehe CLAUDE.md),
+    // das nachdenkliche Wippen wirkt aber aufmunternd genug für "versuch's
+    // nochmal". holdUntil sorgt dafür, dass das Maskottchen mindestens so
+    // lange bleibt, wie die Sprachausgabe dauert, statt nach einer
+    // geschätzten Festzeit zu verschwinden.
+    Mascot.encourage(EL.mascotGame, this.mascotCharacter(), EL.motifStage, {
       size: { width: 100, height: 100 },
-      holdMs: 1300,
-      flightMs: 500,
       holdUntil: audioDone
     });
 
@@ -737,6 +744,8 @@ export const Game = {
   restartGame() {
     STATE.streak = 0;
     STATE.totalCorrect = 0;
+    RewardSystem.resetRound();
+    Mascot.cancelFlight(EL.mascotGame);
     this.saveState();
     this.updateUI();
     this.resumeGame();

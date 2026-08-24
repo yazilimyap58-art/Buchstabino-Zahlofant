@@ -1319,6 +1319,225 @@ body {
 }
 
 /* ============================
+   Herz-Feier (Belohnungssystem)
+   ============================
+   Liegt zwischen .feedback-area (z-index 50) und #confetti-canvas/
+   #mascot-flyer (100/500) - beide bleiben dadurch automatisch sichtbar
+   über dem abgedunkelten Hintergrund, ohne eigene z-index-Anpassung.
+   pointer-events ist nur WÄHREND der sichtbaren Feier aktiv (Klasse
+   .is-visible) - während des kurzen Ausblendens danach kann das Kind
+   schon wieder antippen, statt eine tote Zone zu erleben. */
+.celebration-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(43, 33, 64, 0.18);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.celebration-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#hearts-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================
+   Sticker-Album / Belohnungssystem
+   ============================ */
+.btn-album {
+  position: absolute;
+  top: calc(var(--space-sm) + env(safe-area-inset-top));
+  right: calc(var(--space-md) + env(safe-area-inset-right));
+  z-index: 20;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--color-primary);
+  background: var(--color-surface-floating);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-medium);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-album:hover {
+    background: var(--color-primary);
+    transform: scale(1.05);
+  }
+}
+
+.album-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  text-align: center;
+  animation: fadeInUp 0.4s var(--transition-fast) both;
+}
+
+.album-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md) var(--space-xl);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-floating);
+  box-shadow: var(--shadow-medium);
+}
+
+.album-header__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  color: var(--color-text);
+}
+
+.album-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xl);
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Wachsende Pflanze statt Prozentzahl - Fortschritt nur gegen die eigene
+   Vorgeschichte, nie gegen andere Kinder (siehe Auftrag). */
+.progress-plant {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: clamp(3rem, 12vw, 5rem);
+  line-height: 1;
+}
+
+.progress-plant__stage {
+  margin-bottom: -0.3em;
+  animation: fadeIn 0.5s var(--transition-fast) both;
+}
+
+.progress-plant__pot {
+  font-size: 0.7em;
+}
+
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(72px, 18vw, 120px), 1fr));
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 560px;
+}
+
+/* Sticker sind bildschirmabhängig groß (clamp statt fester px-Größe) -
+   sollen im Album großzügig Platz einnehmen, nicht klein wirken. */
+.sticker {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-subtle);
+  font-size: clamp(2rem, 8vw, 3.25rem);
+}
+
+.sticker--unlocked {
+  border-color: var(--color-amber);
+  box-shadow: var(--shadow-medium);
+  animation: scaleIn 0.3s var(--transition-fast) both;
+}
+
+/* Noch nicht freigeschaltet: Silhouette statt "noch nicht geschafft"-Text -
+   macht neugierig, ohne Versagen zu suggerieren. */
+.sticker--locked .sticker__emoji {
+  filter: grayscale(1) brightness(0.35);
+  opacity: 0.5;
+}
+
+.album-footer {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.btn-parent-gate {
+  background: var(--color-surface-floating);
+  border: 2px solid var(--color-border-subtle);
+  border-radius: var(--radius-pill);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.parent-modal {
+  margin: 0;
+  border: none;
+  padding: var(--space-lg);
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: inherit;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.parent-modal[open] {
+  position: fixed;
+  inset: 0;
+  display: flex;
+}
+
+.parent-modal::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+}
+
+.parent-modal[open] .modal-content {
+  animation: scaleIn 0.3s ease forwards;
+}
+
+.parent-stats {
+  text-align: left;
+  margin: var(--space-md) 0;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-option-bg);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.parent-stats__row {
+  padding: var(--space-xs) 0;
+}
+
+.parent-stats__total {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text);
+}
+
+/* ============================
    Animations
    ============================ */
 @keyframes fadeInDown {

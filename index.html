@@ -18,6 +18,15 @@
   <!-- Confetti Canvas -->
   <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
+  <!-- Herz-Feier bei Streak-Meilensteinen (siehe js/celebration.js):
+       blockierendes, aber durchsichtiges Overlay - liegt zwischen
+       .feedback-area (z-index 50) und #confetti-canvas/#mascot-flyer
+       (100/500), damit Konfetti und das ankommende Maskottchen weiterhin
+       sichtbar über dem abgedunkelten Hintergrund bleiben. -->
+  <div class="celebration-overlay" id="celebration-overlay" hidden aria-hidden="true">
+    <canvas id="hearts-canvas" aria-hidden="true"></canvas>
+  </div>
+
   <!-- Hilfe-Funktion: fliegt vom Kopfzeilen-Maskottchen zur richtigen
        Antwort (siehe Mascot.flyTo()); geteilt zwischen screen-game und
        screen-letter-draw, da immer nur eines der beiden aktiv ist. -->
@@ -34,6 +43,10 @@
         </h1>
       </div>
       <p class="mode-select__subtitle">Was möchtest du lernen?</p>
+
+      <button class="btn-album" id="btn-open-album" type="button" aria-label="Sticker-Album öffnen">
+        <span aria-hidden="true">🎁</span>
+      </button>
 
       <div class="mode-cards">
         <button class="mode-card category-card" type="button" data-category="letters">
@@ -182,7 +195,44 @@
         <button class="btn-primary" id="btn-draw-next" type="button">Weiter ▶</button>
       </footer>
     </section>
+
+    <!-- Sticker-Album: dauerhafter Fortschritt (Pflanze) + Meilenstein-
+         Sticker, vom Kategoriewahl-Screen aus erreichbar (🎁-Button). -->
+    <section class="screen album-screen" id="screen-sticker-album" hidden>
+      <button class="btn-back btn-back-category" type="button" aria-label="Menü: zurück zur Kategoriewahl">🏠 Menü</button>
+
+      <div class="album-header">
+        <h1 class="album-header__title">🎁 Sticker-Album</h1>
+      </div>
+
+      <div class="album-content">
+        <div class="progress-plant" role="img" aria-label="Dein Fortschritt: eine wachsende Pflanze">
+          <div class="progress-plant__pot" aria-hidden="true">🪴</div>
+          <div class="progress-plant__stage" id="progress-plant-stage" aria-hidden="true">🌱</div>
+        </div>
+
+        <div class="sticker-grid" id="sticker-grid" role="list" aria-label="Deine Sticker"></div>
+      </div>
+
+      <footer class="album-footer">
+        <button class="btn-parent-gate" id="btn-parent-gate" type="button">
+          <span aria-hidden="true">👪</span> Für Eltern (2&nbsp;Sek. halten)
+        </button>
+      </footer>
+    </section>
   </main>
+
+  <!-- Eltern-Bereich: nur per 2-Sekunden-Halten erreichbar, rein
+       informativ (kein Kinder-Feedback, keine Gamification). -->
+  <dialog class="parent-modal" id="parent-modal" aria-labelledby="parent-title">
+    <div class="modal-content">
+      <h2 id="parent-title">👪 Für Eltern</h2>
+      <div class="parent-stats" id="parent-stats"></div>
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-parent-close">Schließen</button>
+      </div>
+    </div>
+  </dialog>
 
   <!-- Pause-Modal -->
   <dialog class="pause-modal" id="pause-modal" aria-labelledby="pause-title">

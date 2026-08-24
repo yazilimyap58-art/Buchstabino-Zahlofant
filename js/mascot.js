@@ -1,6 +1,11 @@
 /* ----------------------------
    Maskottchen (Buchstabino & Zahlofant)
    ---------------------------- */
+import { Confetti } from './confetti.js';
+import { Celebration } from './celebration.js';
+import { withTimeout } from './utils.js';
+import { TIMINGS, celebrateTier } from './timings.js';
+
 const MASCOT_BASE = 'assets/mascots/buchstabino_zahlofant_assets/svg/';
 // Für set()'s alt-Text-Update: manche <img>-Elemente (z.B. #mascot-game,
 // #mascot-draw) zeigen je nach Modus/Charakter mal Buchstabino, mal
@@ -233,11 +238,100 @@ export const Mascot = {
   // beim Verlassen eines Minispiels mitten in einer Feier kein "hängender"
   // Zustand entsteht (Kopfzeilen-Maskottchen bliebe sonst unsichtbar, bis
   // die unterbrochene Animation irgendwann von selbst zu Ende läuft).
+  // Bricht ebenso eine laufende Herz-Feier ab (Celebration.cancel()) -
+  // sonst bliebe das blockierende Overlay bei einem Rundenabbruch mitten
+  // in einer Streak-Feier dauerhaft über dem neuen Screen liegen.
   cancelFlight(sourceImgEl) {
     if (!sourceImgEl) return;
     this._flightGen.set(sourceImgEl, (this._flightGen.get(sourceImgEl) || 0) + 1);
     sourceImgEl.style.visibility = '';
     const flyer = document.getElementById('mascot-flyer');
     if (flyer) flyer.hidden = true;
+    Celebration.cancel();
+  },
+
+  // ----------------------------
+  // Zustandsmaschine: cheer/celebrate/encourage/reward
+  // ----------------------------
+  // Bauen alle auf dem obigen flyTo()/set()/setIfCurrent() auf - diese
+  // bleiben unverändert. Jede Antwort löst GENAU einen dieser Aufrufe aus,
+  // nie flyTo() zusätzlich daneben (siehe CLAUDE.md-Auftrag "genau ein
+  // Maskottchen-Auftritt pro Antwort").
+
+  // Normale Richtig-Antwort-Feier - inhaltlich identisch mit dem
+  // ursprünglichen, direkt in Game.handleCorrect() liegenden flyTo()-
+  // Aufruf, hierher gezogen, damit alle Aufrufstellen (count/arithmetic/
+  // lettersHear/lettersFind über Game.handleCorrect(), lettersDraw über
+  // LetterDraw.handleNext()) dieselbe Logik statt eigener Kopien nutzen.
+  cheer(sourceImgEl, character, target, opts = {}) {
+    const { size = null, holdUntil = null } = opts;
+    const t = TIMINGS.CHEER;
+    return new Promise(resolve => {
+      this.flyTo(sourceImgEl, character, target, {
+        pose: 'celebrating',
+        align: 'center',
+        vAlign: 'center',
+        size,
+        holdMs: t.holdMs,
+        flightMs: t.flightMs,
+        holdUntil,
+        onArrive: () => withTimeout(Confetti.trigger(), t.confettiTimeoutMs).then(resolve)
+      });
+    });
+  },
+
+  // Gesteigerter Auftritt bei einer Streak-Stufe (3|5|10, jede weitere
+  // 5er-Stufe nutzt Stufe 10, siehe timings.js celebrateTier()): EIN
+  // einziger flyTo()-Aufruf wie bei cheer() (kein zweiter Auftritt!),
+  // onArrive löst Konfetti UND den Herz-Schwarm (Celebration.showHearts())
+  // parallel aus.
+  celebrate(level, sourceImgEl, character, target, opts = {}) {
+    const { size = null, holdUntil = null } = opts;
+    const t = celebrateTier(level);
+    return new Promise(resolve => {
+      this.flyTo(sourceImgEl, character, target, {
+        pose: 'celebrating',
+        align: 'center',
+        vAlign: 'center',
+        size,
+        holdMs: t.holdMs,
+        flightMs: t.flightMs,
+        holdUntil,
+        onArrive: () => {
+          const confettiDone = withTimeout(Confetti.trigger(), t.confettiTimeoutMs);
+          const heartsDone = withTimeout(Celebration.showHearts(level), t.heartsTimeoutMs);
+          Promise.all([confettiDone, heartsDone]).then(resolve);
+        }
+      });
+    });
+  },
+
+  // Falsch-Antwort-Auftritt - inhaltlich identisch mit dem ursprünglichen
+  // Game.handleWrong()-flyTo()-Aufruf, nur zentralisiert.
+  encourage(sourceImgEl, character, target, opts = {}) {
+    const { size = null, holdUntil = null } = opts;
+    const t = TIMINGS.ENCOURAGE;
+    this.flyTo(sourceImgEl, character, target, {
+      pose: 'thinking',
+      align: 'center',
+      vAlign: 'center',
+      size,
+      holdMs: t.holdMs,
+      flightMs: t.flightMs,
+      holdUntil
+    });
+  },
+
+  // In-Place-Pose-Wechsel OHNE Flug (Sticker-Album/Eltern-Bereich-Reveals -
+  // nicht an eine Antwort gebunden, daher kein Bühnenauftritt nötig).
+  reward(imgEl, character, opts = {}) {
+    const { holdMs = TIMINGS.REWARD_POSE_HOLD_MS } = opts;
+    return new Promise(resolve => {
+      const gen = this.set(imgEl, character, 'celebrating');
+      setTimeout(() => {
+        this.setIfCurrent(imgEl, character, 'idle', gen);
+        resolve();
+      }, holdMs);
+    });
   }
 };

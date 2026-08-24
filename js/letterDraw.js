@@ -2,9 +2,9 @@ import { EL } from './dom.js';
 import { STATE } from './state.js';
 import { TTS } from './tts.js';
 import { Mascot } from './mascot.js';
-import { Confetti } from './confetti.js';
 import { withTimeout } from './utils.js';
 import { Game } from './game.js';
+import { RewardSystem } from './rewardSystem.js';
 import { LETTER_PATHS, LETTER_PATH_BOX } from './letterPaths.js';
 
 /* ----------------------------
@@ -448,23 +448,21 @@ export const LetterDraw = {
         STATE.streak++;
         STATE.totalCorrect++;
         Game.saveState();
-        // Große Center-Stage-Feier wie bei den anderen Modi (siehe
-        // Game.handleCorrect()): Maskottchen kommt auf die Zeichenfläche
-        // herunter, Konfetti startet erst beim Ankommen (onArrive).
+        // Wie bei Game.handleCorrect(): RewardSystem entscheidet, ob dieser
+        // Streak einen Meilenstein trifft, danach GENAU EIN Maskottchen-
+        // Auftritt (cheer() oder gesteigert celebrate(level)).
         const audioDone = withTimeout(TTS.speak(['fixed_draw_success']), 3000);
-        const confettiDone = new Promise(resolve => {
-          Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
-            pose: 'celebrating',
-            align: 'center',
-            vAlign: 'center',
-            size: { width: 110, height: 110 },
-            holdMs: 1600,
-            flightMs: 500,
-            holdUntil: audioDone,
-            onArrive: () => withTimeout(Confetti.trigger(), 2100).then(resolve)
-          });
-        });
-        Promise.all([confettiDone, audioDone]).then(() => this.beginFreehandPhase());
+        const result = RewardSystem.recordCorrect('lettersDraw');
+        const effectsDone = result.milestoneLevel
+          ? Mascot.celebrate(result.milestoneLevel, EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+              size: { width: 110, height: 110 },
+              holdUntil: audioDone
+            })
+          : Mascot.cheer(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+              size: { width: 110, height: 110 },
+              holdUntil: audioDone
+            });
+        Promise.all([effectsDone, audioDone]).then(() => this.beginFreehandPhase());
       } else {
         // Hartes "erneut versuchen" statt Weiterschalten: unter 75%
         // nachgefahrener Linie (oder zu viel Tinte ausserhalb des Bands)
@@ -502,32 +500,28 @@ export const LetterDraw = {
         STATE.streak++;
         STATE.totalCorrect++;
         Game.saveState();
-        const confettiDone = new Promise(resolve => {
-          Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
-            pose: 'celebrating',
-            align: 'center',
-            vAlign: 'center',
-            size: { width: 110, height: 110 },
-            holdMs: 1600,
-            flightMs: 500,
-            holdUntil: audioDone,
-            onArrive: () => withTimeout(Confetti.trigger(), 1900).then(resolve)
-          });
-        });
-        Promise.all([confettiDone, audioDone]).then(() => this.pickNewLetter());
+        const result = RewardSystem.recordCorrect('lettersDraw');
+        const effectsDone = result.milestoneLevel
+          ? Mascot.celebrate(result.milestoneLevel, EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+              size: { width: 110, height: 110 },
+              holdUntil: audioDone
+            })
+          : Mascot.cheer(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
+              size: { width: 110, height: 110 },
+              holdUntil: audioDone
+            });
+        Promise.all([effectsDone, audioDone]).then(() => this.pickNewLetter());
       } else {
-        // Wie bei Game.handleWrong(): 'thinking'-Pose statt 'celebrating',
-        // kein Konfetti - es gibt keine eigene "traurige" Pose (siehe
-        // CLAUDE.md). holdUntil: die "Guter Versuch..."-Nachricht ist
-        // deutlich länger als die anderen Feedback-Sätze, ohne das würde
-        // das Maskottchen oft schon wegfliegen, bevor sie zu Ende ist.
-        Mascot.flyTo(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
-          pose: 'thinking',
-          align: 'center',
-          vAlign: 'center',
+        // encourage() - es gibt keine eigene "traurige" Pose (siehe
+        // CLAUDE.md). Bewusst KEIN RewardSystem.recordWrong() hier: die
+        // Freihand-Phase blockiert schon heute nicht hart und gibt nur
+        // ehrliches Feedback statt eines echten Richtig/Falsch-Binärs -
+        // ein Fehlschlag hier soll den Reward-Streak nicht zurücksetzen.
+        // holdUntil: die "Guter Versuch..."-Nachricht ist deutlich länger
+        // als die anderen Feedback-Sätze, ohne das würde das Maskottchen
+        // oft schon wegfliegen, bevor sie zu Ende ist.
+        Mascot.encourage(EL.mascotDraw, 'buchstabino', EL.drawInkCanvas, {
           size: { width: 95, height: 95 },
-          holdMs: 1300,
-          flightMs: 450,
           holdUntil: audioDone
         });
         audioDone.then(() => this.pickNewLetter());
