@@ -12,6 +12,21 @@ import { RewardSystem } from './rewardSystem.js';
 // geöffnet wurden, damit die Begrüßungs-Pose nur beim ersten Öffnen läuft.
 const greetedAreas = new Set();
 
+// Sperrt Options-Buttons/Buchstaben-Kacheln, solange die Richtig/Falsch-
+// Feier (Maskottchen-Animation + Sprachausgabe) noch läuft - verhindert,
+// dass ein zweiter Tap eine zweite, überlappende Feier auslöst, bevor die
+// erste fertig ist. Bewusst kein STATE-Feld (rein transient, wie
+// greetedAreas). Der Hilfe-Button prüft dieses Flag NICHT (siehe
+// bindEvents()) - er soll immer sofort reagieren.
+let answerLocked = false;
+
+// Sperrt Kategorie-/Modus-Karten, solange eine Maskottchen-Vorstellung
+// (Winken + Hervorhebung + Sprachausgabe auf der Startseite, siehe
+// greetCategoryScreen(); oder der große Flug + Sprachausgabe im
+// Moduswahl-Menü, siehe greetWithVoice()) noch läuft - gleiche Logik wie
+// answerLocked, nur für die Menüs statt für Antworten.
+let menuGreetLocked = false;
+
 /* ----------------------------
    Game Logic
    ---------------------------- */
@@ -23,27 +38,106 @@ export const Game = {
     this.greetCategoryScreen();
   },
 
-  // Begrüßung auf der Startseite: beide Maskottchen winken SOFORT (rein
-  // visuell, keine Einschränkung durch Browser-Autoplay-Regeln). Sie
-  // SPRECHEN hier bewusst nicht - das passiert erst pro Kategorie beim
-  // tatsächlichen Einstieg (siehe selectCategory()), ausgelöst durch genau
-  // den Klick, der die Kategorie öffnet. Ein früherer Versuch, beide
-  // Ansagen an den allerersten Klick irgendwo auf der Seite zu hängen,
-  // spielte immer BEIDE Stimmen ab, egal welche Kategorie gewählt wurde -
-  // fachlich falsch (nur die gewählte Figur soll sich vorstellen) und ergab
-  // zusätzlich hörbares Überlappen.
+  // Begrüßung auf der Startseite: die zwei Maskottchen stellen sich
+  // NACHEINANDER vor, nicht gleichzeitig - erst Buchstabino (winkt, seine
+  // Karte wird per `.category-card--active` hervorgehoben, Zahlofants
+  // Karte parallel per `.category-card--dimmed` abgedunkelt, exakt für die
+  // Dauer seines eigenen Audios, Start bis Ende), dann Zahlofant im
+  // selben Ablauf mit vertauschten Rollen. Jede Figur wechselt erst NACH
+  // der eigenen Ansage von 'waving' zu ihrer ABC/123-Grafik als neuer
+  // Ruhezustand.
+  //
+  // Browser blockieren automatisch startende Audiowiedergabe ohne
+  // vorherige Nutzerinteraktion (Autoplay-Policy, betrifft sowohl
+  // Audio.play() als auch speechSynthesis.speak() - beide würden beim
+  // Aufruf direkt aus init() lautlos scheitern, siehe Konsole: "Audio
+  // fehlt/kaputt"). Die Vorstellung wartet deshalb auf die ERSTE
+  // Interaktion irgendwo auf der Seite (Klick ODER Tastatur), danach
+  // genau einmal. Ein "Fake"-Klick (synthetisch per JS ausgelöst) kann
+  // das NICHT vorab freischalten - Browser verlangen zwingend einen
+  // `isTrusted`-Event von echter Hardware-Eingabe, das lässt sich nicht
+  // umgehen.
+  //
+  // Sonderfall direkter Kachelklick: tippt das Kind sofort auf eine der
+  // beiden Kategorie-Kacheln, ist GENAU DIESER Klick die auslösende
+  // Interaktion - aber er hat (da `selectCategory()` direkt auf der
+  // Kachel gebunden ist und in der Zielphase VOR unserem
+  // `document`-Listener feuert) bereits ins nächste Menü navigiert, bevor
+  // wir hier ansetzen. In diesem Fall NICHT nachträglich auf dem neuen
+  // Screen die volle Zwei-Figuren-Vorstellung abspielen, sondern gar
+  // nichts tun: `greetedAreas` bleibt unangetastet, sodass
+  // `selectCategory()`s bereits laufende Erstbesuch-Prüfung
+  // (`!greetedAreas.has(categoryId)`) wie gehabt zutrifft und
+  // `greetWithVoice()` genau die angeklickte Figur ganz normal im neuen
+  // Menü vorstellt - kein Sonderfall-Code nötig, einfach den
+  // bestehenden Mechanismus ungestört laufen lassen.
   greetCategoryScreen() {
-    Mascot.set(EL.mascotCategoryLetters, 'buchstabino', 'waving');
-    Mascot.set(EL.mascotCategoryNumbers, 'zahlofant', 'waving');
+    let triggered = false;
+    const runGreeting = async () => {
+      if (triggered) return;
+      triggered = true;
+      document.removeEventListener('click', runGreeting);
+      document.removeEventListener('keydown', runGreeting);
+
+      if (EL.screenCategorySelect.hidden) {
+        // Direkter Kachelklick (siehe oben): die Wink+Sprech-Vorstellung
+        // entfällt hier, aber der Ruhezustand (ABC/123) muss trotzdem
+        // gesetzt werden - sonst bleiben beide Karten für immer auf
+        // 'idle' stehen, weil greetCategoryScreen() nur einmal aus
+        // init() läuft und beim Zurückkehren zur Kategorie-Seite (🏠
+        // Menü) nicht erneut aufgerufen wird.
+        Mascot.set(EL.mascotCategoryLetters, 'buchstabino', 'ABC');
+        Mascot.set(EL.mascotCategoryNumbers, 'zahlofant', '123');
+        return;
+      }
+
+      greetedAreas.add('letters');
+      greetedAreas.add('numbers');
+      menuGreetLocked = true;
+
+      const letterCard = EL.mascotCategoryLetters.closest('.category-card');
+      const numberCard = EL.mascotCategoryNumbers.closest('.category-card');
+
+      letterCard.classList.add('category-card--active');
+      numberCard.classList.add('category-card--dimmed');
+      const letterGen = Mascot.set(EL.mascotCategoryLetters, 'buchstabino', 'waving');
+      await withTimeout(TTS.speak(['greet_buchstabino']), 6000).catch(() => {});
+      Mascot.setIfCurrent(EL.mascotCategoryLetters, 'buchstabino', 'ABC', letterGen);
+
+      letterCard.classList.remove('category-card--active');
+      letterCard.classList.add('category-card--dimmed');
+      numberCard.classList.remove('category-card--dimmed');
+      numberCard.classList.add('category-card--active');
+      const numberGen = Mascot.set(EL.mascotCategoryNumbers, 'zahlofant', 'waving');
+      await withTimeout(TTS.speak(['greet_zahlofant']), 6000).catch(() => {});
+      Mascot.setIfCurrent(EL.mascotCategoryNumbers, 'zahlofant', '123', numberGen);
+
+      numberCard.classList.remove('category-card--active');
+      letterCard.classList.remove('category-card--dimmed');
+      menuGreetLocked = false;
+    };
+    document.addEventListener('click', runGreeting);
+    document.addEventListener('keydown', runGreeting);
   },
 
-  // Winkt UND spricht die Begrüßung der übergebenen Figur, revertiert erst
-  // zu idle wenn die Ansage fertig ist (nicht nach fixem Timeout) - siehe
+  // Fliegt winkend UND sprechend von der Kopfzeile größer auf die
+  // Moduswahl-Bühne (gleiches Muster wie Mascot.cheer()/celebrate() bei
+  // Richtig/Falsch - "kommt herunter" statt nur eine kleine Pose in der
+  // Kopfzeile zu wechseln), bleibt für die Dauer der eigenen Ansage dort
+  // und fliegt danach zurück zu 'idle' in der Kopfzeile (flyTo() erledigt
+  // den Rückflug/Revert selbst, siehe dort) - siehe
   // selectCategory()/firstVisit.
   greetWithVoice(imgEl, character, key) {
-    const gen = Mascot.set(imgEl, character, 'waving');
-    const backToIdle = () => Mascot.setIfCurrent(imgEl, character, 'idle', gen);
-    TTS.speak([key]).then(backToIdle, backToIdle);
+    const target = imgEl.closest('.screen').querySelector('.mode-cards');
+    const speakDone = withTimeout(TTS.speak([key]), 8000).catch(() => {});
+    menuGreetLocked = true;
+    Mascot.flyTo(imgEl, character, target, {
+      pose: 'waving',
+      align: 'center',
+      vAlign: 'center',
+      size: { width: 170, height: 170 },
+      holdUntil: speakDone
+    }).then(() => { menuGreetLocked = false; });
   },
 
   loadState() {
@@ -115,6 +209,7 @@ export const Game = {
     RewardSystem.resetRound();
     Mascot.cancelFlight(EL.mascotGame);
     Mascot.cancelFlight(EL.mascotDraw);
+    answerLocked = false; // neue Runde darf nie gesperrt starten
     this.saveState();
 
     if (modeId === 'lettersDraw' || modeId === 'numbersDraw') {
@@ -450,13 +545,14 @@ export const Game = {
   },
 
   handleOptionClick(event) {
-    if (!STATE.isPlaying || STATE.isPaused) return;
+    if (!STATE.isPlaying || STATE.isPaused || answerLocked) return;
     const btn = event.target.closest('.option-btn');
     if (!btn) return;
 
     const { answer } = STATE.currentTask;
 
     // Disable all options during feedback
+    answerLocked = true;
     EL.optionButtons.forEach(b => b.disabled = true);
 
     // String-Vergleich statt Number(): Buchstaben-Modi liefern Buchstaben statt Zahlen als Wert
@@ -508,6 +604,7 @@ export const Game = {
 
     // Erst zur nächsten Aufgabe wechseln, wenn Audio UND Maskottchen-Feier fertig sind
     Promise.all([effectsDone, audioDone]).then(() => {
+      answerLocked = false;
       this.generateTask();
     });
   },
@@ -533,7 +630,7 @@ export const Game = {
     // nochmal". holdUntil sorgt dafür, dass das Maskottchen mindestens so
     // lange bleibt, wie die Sprachausgabe dauert, statt nach einer
     // geschätzten Festzeit zu verschwinden.
-    Mascot.encourage(EL.mascotGame, this.mascotCharacter(), EL.motifStage, {
+    const effectsDone = Mascot.encourage(EL.mascotGame, this.mascotCharacter(), EL.motifStage, {
       size: { width: 100, height: 100 },
       holdUntil: audioDone
     });
@@ -545,19 +642,25 @@ export const Game = {
     // Show feedback
     this.showFeedback('Falsch! Versuch es noch einmal.', 'wrong');
 
-    // Re-enable all buttons except the one just marked wrong
-    setTimeout(() => {
+    // Geschwister erst wieder freigeben, wenn Maskottchen-Animation UND
+    // Sprachausgabe wirklich fertig sind - nicht mehr nach einer festen
+    // Wartezeit (die bisherige 800ms-Grenze konnte kürzer sein als die
+    // tatsächliche Feier, wodurch ein zweiter Tap eine zweite Feier
+    // überlappend auslösen konnte).
+    Promise.all([effectsDone, audioDone]).then(() => {
+      answerLocked = false;
       siblings.forEach(btn => {
         if (btn !== wrongBtn) btn.disabled = false;
       });
-    }, 800);
+    });
   },
 
   handleLetterTileClick(event) {
-    if (!STATE.isPlaying || STATE.isPaused) return;
+    if (!STATE.isPlaying || STATE.isPaused || answerLocked) return;
     const tileEl = event.target.closest('.letter-tile');
     if (!tileEl || tileEl.disabled) return;
 
+    answerLocked = true;
     const tiles = EL.motifStage.querySelectorAll('.letter-tile');
     tiles.forEach(t => t.disabled = true);
 
@@ -610,6 +713,13 @@ export const Game = {
     // Category selection (erste Ebene: Buchstaben/Zahlen)
     EL.categoryCards.forEach(card => {
       card.addEventListener('click', () => {
+        // Läuft gerade schon eine Vorstellung (ausgelöst durch eine
+        // FRÜHERE Interaktion), soll ein weiterer Klick nicht mitten
+        // hinein navigieren - der allererste Klick selbst (bevor
+        // menuGreetLocked überhaupt gesetzt wird) bleibt davon unberührt,
+        // siehe greetCategoryScreen()s Sonderfall für den direkten
+        // Kachelklick.
+        if (menuGreetLocked) return;
         this.selectCategory(card.dataset.category);
       });
     });
@@ -624,6 +734,10 @@ export const Game = {
     // Mode selection
     EL.modeCards.forEach(card => {
       card.addEventListener('click', () => {
+        // Solange die Kopfzeilen-Figur noch per greetWithVoice() auf der
+        // Bühne steht und sich vorstellt, soll ein Tap auf eine Modus-
+        // Karte nicht mitten hinein navigieren.
+        if (menuGreetLocked) return;
         this.selectMode(card.dataset.mode);
       });
     });
@@ -747,6 +861,7 @@ export const Game = {
     STATE.totalCorrect = 0;
     RewardSystem.resetRound();
     Mascot.cancelFlight(EL.mascotGame);
+    answerLocked = false;
     this.saveState();
     this.updateUI();
     this.resumeGame();

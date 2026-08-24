@@ -1,12 +1,24 @@
 // Service Worker für PWA-Offline-Fähigkeit
 // Cacht die wichtigsten Assets, damit das Spiel auch ohne Internet funktioniert
 
-const CACHE_NAME = 'buchstabino-zahlofant-v10';
+const CACHE_NAME = 'buchstabino-zahlofant-v18';
 const MASCOT_BASE = '/assets/mascots/buchstabino_zahlofant_assets/svg/';
-const MASCOT_POSES = ['idle', 'waving', 'thinking', 'celebrating'];
-const MASCOT_ASSETS = ['buchstabino', 'zahlofant'].flatMap(
-  character => MASCOT_POSES.map(pose => `${MASCOT_BASE}${character}_${pose}.svg`)
-);
+// 'pointing' fehlte hier bisher (Lücke, nicht Absicht) - wird aktiv für den
+// Hilfe-Button-Flyer genutzt, muss also mitgecacht werden. 'konfetti'/'herz'
+// sind neu: Mascot.cheer()/celebrate() nutzen sie jetzt statt 'celebrating'
+// (siehe js/mascot.js).
+const MASCOT_POSES = ['idle', 'waving', 'thinking', 'celebrating', 'pointing', 'konfetti', 'herz'];
+const MASCOT_ASSETS = [
+  ...['buchstabino', 'zahlofant'].flatMap(
+    character => MASCOT_POSES.map(pose => `${MASCOT_BASE}${character}_${pose}.svg`)
+  ),
+  // Asymmetrisch (nur je einmal, nicht pro Charakter symmetrisch) - passen
+  // nicht ins obige MASCOT_POSES-Muster: Buchstabino/Zahlofant zeigen sich
+  // nach der Startseiten-Begrüßung dauerhaft mit ihrem Themen-Motiv statt
+  // wieder mit 'idle' (siehe Game.greetCategoryScreen()).
+  `${MASCOT_BASE}buchstabino_ABC.svg`,
+  `${MASCOT_BASE}zahlofant_123.svg`
+];
 const JS_MODULES = [
   'utils', 'config', 'state', 'dom', 'tts', 'timings', 'gameEvents', 'rewardStorage',
   'rewardSystem', 'confetti', 'celebration', 'mascot', 'traceDraw', 'rewardUI', 'game'

@@ -15,6 +15,22 @@ const MASCOT_BASE = 'assets/mascots/buchstabino_zahlofant_assets/svg/';
 // Charakter ansagen).
 const DISPLAY_NAME = { buchstabino: 'Buchstabino', zahlofant: 'Zahlofant' };
 
+// Fingerspitzen-Position der *_pointing.svg-Kunst als Bruchteil der
+// Bildgröße (0..1), benutzt von flyTo() (siehe dort) für align:'hand'/
+// 'point'. PRO CHARAKTER unterschiedlich - im aktuellen (zweiten) Kunststil
+// zeigt Buchstabino seitlich/diagonal nach rechts (Hand auf Brusthöhe),
+// Zahlofant dagegen den Arm gerade nach oben (Hand über dem Kopf), beide in
+// einer einheitlichen 600x680-viewBox. Per Canvas-Pixel-Scan ermittelt
+// (rechteste bzw. oberste nicht-transparente Stelle im Handbereich; siehe
+// CLAUDE.md-Gotcha "Reading fine visual detail..." - nie an einer kleinen
+// Kopfzeilen-Vorschau ablesen, IMMER am tatsächlichen Bild nachmessen, wenn
+// sich die Maskottchen-Kunst ändert). Bei einem künftigen Kunstwechsel hier
+// neu einmessen, nicht schätzen.
+const HAND_FRACTIONS = {
+  buchstabino: { x: 566 / 600, y: 358 / 680 },
+  zahlofant: { x: 499 / 600, y: 170 / 680 }
+};
+
 export const Mascot = {
   // Zählt pro Maskottchen-<img> hoch, wie oft set() aufgerufen wurde - Basis
   // für setIfCurrent() (siehe dort), damit ein verzögerter "zurück zu idle"-
@@ -124,9 +140,9 @@ export const Mascot = {
       // Maskottchens statt zeitlich unabhängig davon zu starten).
       onArrive = null
     } = opts;
-    if (!sourceImgEl || !target) return;
+    if (!sourceImgEl || !target) return Promise.resolve();
     const flyer = document.getElementById('mascot-flyer');
-    if (!flyer) return;
+    if (!flyer) return Promise.resolve();
 
     const myFlight = (this._flightGen.get(sourceImgEl) || 0) + 1;
     this._flightGen.set(sourceImgEl, myFlight);
@@ -162,22 +178,17 @@ export const Mascot = {
     flyer.getBoundingClientRect(); // Reflow erzwingen, bevor die Transition wieder greift
     flyer.style.transition = '';
 
-    // Zielposition. Im 'hand'-Modus (Hilfe-Funktion): UNTERHALB des Ziels
-    // (die erhobene Zeigehand im SVG zeigt nach oben - siehe
-    // buchstabino_pointing.svg/zahlofant_pointing.svg, "Finger"-<rect> in
-    // der rotierten Hand-<g>), mit etwas Abstand. Die Hand sitzt dabei
-    // nicht in der Bildmitte, sondern deutlich rechts davon (~82% der
-    // Bildbreite) - ohne Korrektur würde die Bildmitte über der Antwort
-    // landen, aber die Hand selbst daneben zeigen. Das Bild wird deshalb
-    // weiter nach links versetzt, als eine reine Mitten-Ausrichtung es
-    // täte, damit die Hand die Antwort trifft. Im 'center'-Modus (Feier)
-    // ist nichts Bestimmtes anzuzeigen, daher schlicht mittig auf `target`.
-    const handXFraction = 0.82;
-    // Fingerspitze sitzt im 300x340-viewBox der pointing-SVGs bei etwa
-    // x≈250-260/y≈70-90, also ungefähr (0.85, 0.24) der Bildgröße - für
-    // align:'point' (siehe oben) wird das Bild so verschoben, dass genau
-    // dieser Punkt auf `target` landet, statt die Bildmitte oder -kante.
-    const handYFraction = 0.24;
+    // Zielposition. Im 'hand'-Modus (Hilfe-Funktion): UNTERHALB des Ziels,
+    // mit etwas Abstand. Die zeigende Hand sitzt dabei nicht in der
+    // Bildmitte (siehe HAND_FRACTIONS oben, pro Charakter unterschiedlich,
+    // da die beiden Zeige-Posen unterschiedlich ausgerichtet sind) - ohne
+    // Korrektur würde die Bildmitte über der Antwort landen, aber die Hand
+    // selbst daneben zeigen. Das Bild wird deshalb versetzt, damit die Hand
+    // die Antwort trifft. Im 'center'-Modus (Feier) ist nichts Bestimmtes
+    // anzuzeigen, daher schlicht mittig auf `target`.
+    const handFraction = HAND_FRACTIONS[character] || HAND_FRACTIONS.buchstabino;
+    const handXFraction = handFraction.x;
+    const handYFraction = handFraction.y;
     let targetLeft;
     let targetTop;
     if (align === 'point') {
@@ -207,29 +218,42 @@ export const Mascot = {
       flyer.style.top = `${targetTop}px`;
     });
 
-    const flyBack = () => {
-      if (!stillCurrent()) return;
-      flyer.style.left = `${startCenterX - w / 2}px`;
-      flyer.style.top = `${startCenterY - h / 2}px`;
+    // Gibt ein Promise zurück, das erst auflöst, wenn die GESAMTE Sequenz
+    // (Hinflug, Hold, Rückflug, Pose-Revert) abgeschlossen ist - nicht nur
+    // irgendein Teilschritt. Wird u.a. für eine Eingabesperre gebraucht
+    // (siehe Game.handleWrong()/TraceDraw.handleNext()): der Aufrufer soll
+    // erst wieder Klicks zulassen, wenn das Maskottchen wirklich fertig
+    // ist. JEDER `stillCurrent()`-Ausstieg löst ebenfalls auf (nicht nur
+    // der reguläre Abschluss) - sonst würde eine unterbrochene Animation
+    // (z.B. weil Hilfe dieselbe Figur mitten im Flug kapert, siehe
+    // `_flightGen` oben) eine wartende Sperre für immer hängen lassen.
+    return new Promise(resolve => {
+      const flyBack = () => {
+        if (!stillCurrent()) { resolve(); return; }
+        flyer.style.left = `${startCenterX - w / 2}px`;
+        flyer.style.top = `${startCenterY - h / 2}px`;
+        setTimeout(() => {
+          if (stillCurrent()) {
+            flyer.hidden = true;
+            sourceImgEl.style.visibility = '';
+            this.setIfCurrent(sourceImgEl, character, 'idle', poseGen);
+          }
+          resolve();
+        }, flightMs + 50);
+      };
+
       setTimeout(() => {
-        if (!stillCurrent()) return;
-        flyer.hidden = true;
-        sourceImgEl.style.visibility = '';
-        this.setIfCurrent(sourceImgEl, character, 'idle', poseGen);
-      }, flightMs + 50);
-    };
+        if (!stillCurrent()) { resolve(); return; }
+        if (onArrive) onArrive();
 
-    setTimeout(() => {
-      if (!stillCurrent()) return;
-      if (onArrive) onArrive();
-
-      const minHold = new Promise(resolve => setTimeout(resolve, holdMs));
-      const settled = holdUntil ? Promise.all([minHold, holdUntil.then(() => {}, () => {})]) : minHold;
-      // Sicherheitsnetz: falls holdUntil aus irgendeinem Grund nie
-      // auflöst, trotzdem spätestens nach holdMs+4000 zurückfliegen -
-      // sonst bliebe das Maskottchen für immer auf der Bühne stehen.
-      Promise.race([settled, new Promise(resolve => setTimeout(resolve, holdMs + 4000))]).then(flyBack);
-    }, flightMs);
+        const minHold = new Promise(r => setTimeout(r, holdMs));
+        const settled = holdUntil ? Promise.all([minHold, holdUntil.then(() => {}, () => {})]) : minHold;
+        // Sicherheitsnetz: falls holdUntil aus irgendeinem Grund nie
+        // auflöst, trotzdem spätestens nach holdMs+4000 zurückfliegen -
+        // sonst bliebe das Maskottchen für immer auf der Bühne stehen.
+        Promise.race([settled, new Promise(r => setTimeout(r, holdMs + 4000))]).then(flyBack);
+      }, flightMs);
+    });
   },
 
   // Bricht eine laufende flyTo()-Animation für `sourceImgEl` sofort ab und
@@ -263,56 +287,72 @@ export const Mascot = {
   // Aufruf, hierher gezogen, damit alle Aufrufstellen (count/arithmetic/
   // lettersHear/lettersFind über Game.handleCorrect(), lettersDraw/
   // numbersDraw über TraceDraw.handleNext()) dieselbe Logik statt eigener
-  // Kopien nutzen.
+  // Kopien nutzen. Pose 'konfetti' statt 'celebrating' - passt inhaltlich
+  // zum Konfetti-Effekt, den dieser Auftritt sowieso auslöst (onArrive
+  // unten). 'celebrating' bleibt dadurch exklusiv für Mascot.reward()
+  // reserviert, siehe dort.
   cheer(sourceImgEl, character, target, opts = {}) {
     const { size = null, holdUntil = null } = opts;
     const t = TIMINGS.CHEER;
-    return new Promise(resolve => {
-      this.flyTo(sourceImgEl, character, target, {
-        pose: 'celebrating',
-        align: 'center',
-        vAlign: 'center',
-        size,
-        holdMs: t.holdMs,
-        flightMs: t.flightMs,
-        holdUntil,
-        onArrive: () => withTimeout(Confetti.trigger(), t.confettiTimeoutMs).then(resolve)
-      });
+    let confettiResolve;
+    const confettiDone = new Promise(resolve => { confettiResolve = resolve; });
+    // Wartet auf BEIDES: den Konfetti-Effekt UND den kompletten
+    // Maskottchen-Flug (Hin-/Rückflug, nicht nur die Ankunft) - siehe
+    // flyTo()-Kommentar. Aufrufer (z.B. Game.handleCorrect() für eine
+    // Eingabesperre) bekommen so ein wirklich vollständiges
+    // "fertig"-Signal statt nur "Konfetti ist fertig, Maskottchen fliegt
+    // eventuell noch zurück".
+    const flightDone = this.flyTo(sourceImgEl, character, target, {
+      pose: 'konfetti',
+      align: 'center',
+      vAlign: 'center',
+      size,
+      holdMs: t.holdMs,
+      flightMs: t.flightMs,
+      holdUntil,
+      onArrive: () => withTimeout(Confetti.trigger(), t.confettiTimeoutMs).then(confettiResolve)
     });
+    return Promise.all([flightDone, confettiDone]).then(() => {});
   },
 
   // Gesteigerter Auftritt bei einer Streak-Stufe (3|5|10, jede weitere
   // 5er-Stufe nutzt Stufe 10, siehe timings.js celebrateTier()): EIN
   // einziger flyTo()-Aufruf wie bei cheer() (kein zweiter Auftritt!),
   // onArrive löst Konfetti UND den Herz-Schwarm (Celebration.showHearts())
-  // parallel aus.
+  // parallel aus. Pose 'herz' statt 'celebrating' - passt inhaltlich zum
+  // Herz-Schwarm, siehe cheer()-Kommentar oben für dieselbe Begründung.
   celebrate(level, sourceImgEl, character, target, opts = {}) {
     const { size = null, holdUntil = null } = opts;
     const t = celebrateTier(level);
-    return new Promise(resolve => {
-      this.flyTo(sourceImgEl, character, target, {
-        pose: 'celebrating',
-        align: 'center',
-        vAlign: 'center',
-        size,
-        holdMs: t.holdMs,
-        flightMs: t.flightMs,
-        holdUntil,
-        onArrive: () => {
-          const confettiDone = withTimeout(Confetti.trigger(), t.confettiTimeoutMs);
-          const heartsDone = withTimeout(Celebration.showHearts(level), t.heartsTimeoutMs);
-          Promise.all([confettiDone, heartsDone]).then(resolve);
-        }
-      });
+    let effectsResolve;
+    const effectsDone = new Promise(resolve => { effectsResolve = resolve; });
+    // Wartet auf Konfetti UND Herzen UND den kompletten Maskottchen-Flug -
+    // siehe cheer()-Kommentar oben für dieselbe Begründung.
+    const flightDone = this.flyTo(sourceImgEl, character, target, {
+      pose: 'herz',
+      align: 'center',
+      vAlign: 'center',
+      size,
+      holdMs: t.holdMs,
+      flightMs: t.flightMs,
+      holdUntil,
+      onArrive: () => {
+        const confettiDone = withTimeout(Confetti.trigger(), t.confettiTimeoutMs);
+        const heartsDone = withTimeout(Celebration.showHearts(level), t.heartsTimeoutMs);
+        Promise.all([confettiDone, heartsDone]).then(effectsResolve);
+      }
     });
+    return Promise.all([flightDone, effectsDone]).then(() => {});
   },
 
   // Falsch-Antwort-Auftritt - inhaltlich identisch mit dem ursprünglichen
-  // Game.handleWrong()-flyTo()-Aufruf, nur zentralisiert.
+  // Game.handleWrong()-flyTo()-Aufruf, nur zentralisiert. Gibt (anders als
+  // vorher) das flyTo()-Promise zurück - Aufrufer wie Game.handleWrong()
+  // brauchen ein verlässliches "fertig"-Signal für die Eingabesperre.
   encourage(sourceImgEl, character, target, opts = {}) {
     const { size = null, holdUntil = null } = opts;
     const t = TIMINGS.ENCOURAGE;
-    this.flyTo(sourceImgEl, character, target, {
+    return this.flyTo(sourceImgEl, character, target, {
       pose: 'thinking',
       align: 'center',
       vAlign: 'center',

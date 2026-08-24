@@ -83,6 +83,12 @@ export const TraceDraw = {
   modeConfig: null,
   currentItem: null, // { key, display } - key indiziert MODE_CONFIGS[...].pathData, display ist der Anzeige-/Sprachtext
   phase: 'guided', // 'guided' | 'freehand'
+  // Sperrt Zeichenfläche + "Fertig"/"Weiter", solange die Erfolgs-Feier
+  // (Maskottchen-Animation + Sprachausgabe) nach einem bestandenen Versuch
+  // noch läuft - verhindert, dass ein zweiter Tap eine zweite, überlappende
+  // Feier auslöst. Der Hilfe-Button prüft dieses Flag NICHT (bleibt immer
+  // sofort bedienbar, nutzt nur seine eigene helpToken-Logik).
+  inputLocked: false,
 
   // Nachfahren: harte Schwelle - unter 75% Abdeckung des Linienbands (siehe
   // maskBandWidth()/drawMask()) gilt "Fertig" nicht. Nicht höher, weil
@@ -153,6 +159,7 @@ export const TraceDraw = {
     // buildItemPath() mit einem ungültigen Key aufrufen und crashen, bevor
     // pickNewItem() überhaupt ein neues, gültiges currentItem gesetzt hat.
     this.currentItem = null;
+    this.inputLocked = false; // neue Runde darf nie gesperrt starten
     EL.btnDrawRepeat.setAttribute('aria-label', this.modeConfig.repeatAriaLabel);
     EL.btnDrawHelp.setAttribute('aria-label', this.modeConfig.helpAriaLabel);
     this.resize();
@@ -481,7 +488,7 @@ export const TraceDraw = {
   },
 
   handlePointerDown(event) {
-    if (STATE.isPaused) return;
+    if (STATE.isPaused || this.inputLocked) return;
     event.preventDefault();
     EL.drawInkCanvas.setPointerCapture(event.pointerId);
     this.isDrawing = true;
@@ -510,6 +517,7 @@ export const TraceDraw = {
   },
 
   handleNext() {
+    if (STATE.isPaused || this.inputLocked) return;
     const character = this.modeConfig.character;
     const messageKeys = this.modeConfig.messageKeys;
 
@@ -527,6 +535,7 @@ export const TraceDraw = {
         // Wie bei Game.handleCorrect(): RewardSystem entscheidet, ob dieser
         // Streak einen Meilenstein trifft, danach GENAU EIN Maskottchen-
         // Auftritt (cheer() oder gesteigert celebrate(level)).
+        this.inputLocked = true;
         const audioDone = withTimeout(TTS.speak([messageKeys.success]), 3000);
         const result = RewardSystem.recordCorrect(this.modeId);
         const effectsDone = result.milestoneLevel
@@ -538,7 +547,10 @@ export const TraceDraw = {
               size: { width: 110, height: 110 },
               holdUntil: audioDone
             });
-        Promise.all([effectsDone, audioDone]).then(() => this.beginFreehandPhase());
+        Promise.all([effectsDone, audioDone]).then(() => {
+          this.inputLocked = false;
+          this.beginFreehandPhase();
+        });
       } else {
         // Hartes "erneut versuchen" statt Weiterschalten: unter 75%
         // nachgefahrener Linie (oder zu viel Tinte ausserhalb des Bands)
@@ -573,6 +585,7 @@ export const TraceDraw = {
         // tatsächlich validierten Leistung, hier ebenso gültig für die
         // Freihand-Phase - vorher fehlte das hier, sodass ein bestandener
         // Freihand-Durchgang nicht zu Streak/totalCorrect zählte.
+        this.inputLocked = true;
         STATE.streak++;
         STATE.totalCorrect++;
         Game.saveState();
@@ -586,7 +599,10 @@ export const TraceDraw = {
               size: { width: 110, height: 110 },
               holdUntil: audioDone
             });
-        Promise.all([effectsDone, audioDone]).then(() => this.pickNewItem());
+        Promise.all([effectsDone, audioDone]).then(() => {
+          this.inputLocked = false;
+          this.pickNewItem();
+        });
       } else {
         // encourage() - es gibt keine eigene "traurige" Pose (siehe
         // CLAUDE.md). Bewusst KEIN RewardSystem.recordWrong() hier: die
@@ -596,11 +612,15 @@ export const TraceDraw = {
         // holdUntil: die "Guter Versuch..."-Nachricht ist deutlich länger
         // als die anderen Feedback-Sätze, ohne das würde das Maskottchen
         // oft schon wegfliegen, bevor sie zu Ende ist.
-        Mascot.encourage(EL.mascotDraw, character, EL.drawInkCanvas, {
+        this.inputLocked = true;
+        const effectsDone = Mascot.encourage(EL.mascotDraw, character, EL.drawInkCanvas, {
           size: { width: 95, height: 95 },
           holdUntil: audioDone
         });
-        audioDone.then(() => this.pickNewItem());
+        Promise.all([effectsDone, audioDone]).then(() => {
+          this.inputLocked = false;
+          this.pickNewItem();
+        });
       }
     }
   },

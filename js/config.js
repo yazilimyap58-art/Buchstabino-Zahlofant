@@ -13,7 +13,7 @@ export const CONFIG = {
     },
     arithmetic: {
       id: 'arithmetic',
-      name: 'Addieren/Subtrahieren',
+      name: 'Rechnen',
       icon: '➕➖',
       max: 10,
       addPrompt: 'Wie viele sind es zusammen?',

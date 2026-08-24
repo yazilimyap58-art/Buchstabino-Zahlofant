@@ -19,6 +19,10 @@ secrets.json
 # (die eigentlichen SVG/PNG-Grafiken unter assets/mascots/ sind versioniert)
 assets/buchstabino_zahlofant_assets.zip
 assets/mascots/**/*.pdf
+assets/.archiv/
+assets/Buchstabino_Zahlofant_Neuer_Stil_Assets/
+assets/Buchstabino_Zahlofant_SVG_precise/
+assets/Buchstabino_Zahlofant_SVG_precise.zip
 
 # Lokale Doku für AI-Assistenten, nicht Teil des öffentlichen Repos
 CLAUDE.md

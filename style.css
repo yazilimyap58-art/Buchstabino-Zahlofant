@@ -378,6 +378,24 @@ body {
   transform: scale(0.98);
 }
 
+/* Reihum-Vorstellung auf der Startseite (siehe Game.greetCategoryScreen()):
+   die gerade sprechende Maskottchen-Karte wird hervorgehoben, die andere
+   parallel abgedunkelt, damit klar ist, wer gerade "dran" ist. */
+.category-card--active {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: var(--shadow-medium);
+}
+.category-card--active[data-category="letters"] {
+  border-color: var(--color-buchstabino);
+}
+.category-card--active[data-category="numbers"] {
+  border-color: var(--color-zahlofant);
+}
+.category-card--dimmed {
+  opacity: 0.5;
+  transform: scale(0.97);
+}
+
 .mode-card:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
@@ -448,6 +466,15 @@ body {
   flex-direction: column;
   align-items: center;
   gap: var(--space-xs);
+  /* Feste Breite = Durchmesser des Rings (.progress-svg, 56px): ohne das
+     wächst die Box (inline-flex sizt sich sonst am breitesten Kind aus)
+     bei einem längeren .level-badge-Text (z.B. "➕➖ Rechnen") über 56px
+     hinaus. .progress-svg bleibt dann zwar zentriert (align-items:center),
+     aber .streak-display (position:absolute, an der Box-Kante bei 0/0
+     verankert) rutscht dadurch aus der Kreismitte - genau der gemeldete
+     Bug beim Rechnen-Modus. Der Badge-Text darf die Box weiterhin optisch
+     überragen (kein overflow:hidden), nur die Box-Breite selbst bleibt fix. */
+  width: 56px;
 }
 
 .progress-svg {
@@ -474,6 +501,7 @@ body {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
 /* Streak-Anzeige: liegt ÜBER dem Fortschrittsring (.progress-ring ist
