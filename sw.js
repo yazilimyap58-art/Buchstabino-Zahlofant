@@ -1,7 +1,7 @@
 // Service Worker für PWA-Offline-Fähigkeit
 // Cacht die wichtigsten Assets, damit das Spiel auch ohne Internet funktioniert
 
-const CACHE_NAME = 'buchstabino-zahlofant-v5';
+const CACHE_NAME = 'buchstabino-zahlofant-v7';
 const MASCOT_BASE = '/assets/mascots/buchstabino_zahlofant_assets/svg/';
 const MASCOT_POSES = ['idle', 'waving', 'thinking', 'celebrating'];
 const MASCOT_ASSETS = ['buchstabino', 'zahlofant'].flatMap(
